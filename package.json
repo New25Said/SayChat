@@ -1,0 +1,12 @@
+{
+  "name": "multichat-web",
+  "version": "1.0.0",
+  "description": "Chat en vivo usando Firebase y Render",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
