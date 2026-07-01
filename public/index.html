@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multichat Web</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <header>
+            <h2>💬 Multichat Sala Pública</h2>
+            <input type="text" id="username" placeholder="Tu Nombre/Alias" required>
+        </header>
+        
+        <main id="chat-box">
+            <!-- Los mensajes aparecerán aquí -->
+        </main>
+        
+        <form id="chat-form">
+            <input type="text" id="message-input" placeholder="Escribe un mensaje..." required autocomplete="off">
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <!-- Importamos Firebase desde CDN (Versión de módulos para navegadores modernos) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Tus credenciales de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
+            authDomain: "seichato.firebaseapp.com",
+            databaseURL: "https://seichato-default-rtdb.firebaseio.com",
+            projectId: "seichato",
+            storageBucket: "seichato.firebasestorage.app",
+            messagingSenderId: "141497749351",
+            appId: "1:141497749351:web:163d6a94738bf5acdfe9c2",
+            measurementId: "G-9635Z02KGL"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const messagesRef = ref(db, 'messages');
+
+        // Elementos del DOM
+        const chatBox = document.getElementById('chat-box');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const usernameInput = document.getElementById('username');
+
+        // Escuchar nuevos mensajes en tiempo real
+        onChildAdded(messagesRef, (snapshot) => {
+            const data = snapshot.val();
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            // Si el nombre coincide con el del usuario actual, le da un estilo diferente
+            if (data.username === usernameInput.value) {
+                messageElement.classList.add('my-message');
+            }
+
+            messageElement.innerHTML = `<strong>${data.username}:</strong> <span>${data.message}</span>`;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al final
+        });
+
+        // Enviar mensaje a Firebase
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const username = usernameInput.value.trim() || 'Anónimo';
+            const message = messageInput.value.trim();
+
+            if (message) {
+                push(messagesRef, {
+                    username: username,
+                    message: message,
+                    timestamp: Date.now()
+                });
+                messageInput.value = ''; // Limpiar input
+            }
+        });
+    </script>
+</body>
+</html>
