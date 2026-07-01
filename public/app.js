@@ -1,6 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, get, child, update, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, get, child, set, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+// ==========================================================================
+// 1. CONFIGURACIÓN E INICIALIZACIÓN
+// ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
     authDomain: "seichato.firebaseapp.com",
@@ -16,190 +19,54 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const dbRef = ref(db);
 
-// Estados locales globales
+// Estado de la aplicación
 let currentUser = null;
 let tempRegisterAvatar = "";
 let tempEditAvatar = "";
 
-// Elementos de Navegación entre vistas
-const loginArea = document.getElementById('login-area');
-const registerArea = document.getElementById('register-area');
-const authScreen = document.getElementById('auth-screen');
-const chatScreen = document.getElementById('chat-screen');
+// ==========================================================================
+// 2. MÓDULO DE INTERFAZ DE USUARIO (UI CONTROLLER)
+// ==========================================================================
+const UI = {
+    screens: {
+        auth: document.getElementById('auth-screen'),
+        chat: document.getElementById('chat-screen'),
+        loginArea: document.getElementById('login-area'),
+        registerArea: document.getElementById('register-area')
+    },
+    inputs: {
+        message: document.getElementById('message-input'),
+        chatBox: document.getElementById('chat-box')
+    },
 
-document.getElementById('go-to-register').addEventListener('click', () => {
-    loginArea.classList.add('hidden');
-    registerArea.classList.remove('hidden');
-});
-
-document.getElementById('go-to-login').addEventListener('click', () => {
-    registerArea.classList.add('hidden');
-    loginArea.classList.remove('hidden');
-});
-
-// Convertidor de archivos de imagen a Base64 text strings
-document.getElementById('reg-avatar').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            tempRegisterAvatar = reader.result;
-            const preview = document.getElementById('reg-preview');
-            preview.src = reader.result;
-            preview.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-document.getElementById('edit-avatar').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            tempEditAvatar = reader.result;
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-// PROCESO DE REGISTRO (CON CONTROL DE CLICKS SEGURO)
-document.getElementById('btn-register-submit').addEventListener('click', async () => {
-    const name = document.getElementById('reg-name').value.trim();
-    let nickname = document.getElementById('reg-nickname').value.trim().toLowerCase().replace('@', '');
-    const password = document.getElementById('reg-password').value;
-
-    if (!name || !nickname || !password) {
-        alert("Por favor rellena todos los campos.");
-        return;
-    }
-    if (!tempRegisterAvatar) {
-        alert("Por favor selecciona una foto de perfil.");
-        return;
-    }
-
-    try {
-        const snapshot = await get(child(dbRef, `users/${nickname}`));
-        if (snapshot.exists()) {
-            alert("Este ID/Nickname ya está en uso.");
-            return;
-        }
-
-        const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
-        await set(ref(db, `users/${nickname}`), userData);
-
-        currentUser = userData;
-        localStorage.setItem('chat_session_v3', JSON.stringify(currentUser));
-        loadChatInterface();
-    } catch (err) {
-        console.error(err);
-        alert("Error de escritura en base de datos.");
-    }
-});
-
-// PROCESO DE LOGIN
-document.getElementById('btn-login-submit').addEventListener('click', async () => {
-    let nickname = document.getElementById('login-nickname').value.trim().toLowerCase().replace('@', '');
-    const password = document.getElementById('login-password').value;
-
-    if (!nickname || !password) {
-        alert("Campos incompletos.");
-        return;
-    }
-
-    try {
-        const snapshot = await get(child(dbRef, `users/${nickname}`));
-        if (snapshot.exists()) {
-            const userData = snapshot.val();
-            if (userData.password === password) {
-                currentUser = userData;
-                localStorage.setItem('chat_session_v3', JSON.stringify(currentUser));
-                loadChatInterface();
-            } else {
-                alert("Contraseña incorrecta.");
-            }
+    switchAuthMode(mode) {
+        if (mode === 'register') {
+            this.screens.loginArea.classList.add('hidden');
+            this.screens.registerArea.classList.remove('hidden');
         } else {
-            alert("El usuario no existe.");
+            this.screens.registerArea.classList.add('hidden');
+            this.screens.loginArea.classList.remove('hidden');
         }
-    } catch (err) {
-        console.error(err);
-        alert("Error de autenticación.");
-    }
-});
+    },
 
-// ACTUALIZAR PERFIL (SÓLO NOMBRE VISUAL Y FOTO)
-document.getElementById('save-profile-btn').addEventListener('click', async () => {
-    const newName = document.getElementById('edit-name').value.trim();
-    const userKey = currentUser.nickname.replace('@', '');
-
-    if (!newName && !tempEditAvatar) {
-        alert("No has realizado ningún cambio.");
-        return;
-    }
-
-    if (newName) currentUser.name = newName;
-    if (tempEditAvatar) currentUser.avatar = tempEditAvatar;
-
-    try {
-        await update(ref(db, `users/${userKey}`), {
-            name: currentUser.name,
-            avatar: currentUser.avatar
-        });
-        localStorage.setItem('chat_session_v3', JSON.stringify(currentUser));
+    showChat(user) {
+        this.screens.auth.classList.add('hidden');
+        this.screens.chat.classList.remove('hidden');
         
-        document.getElementById('current-user-name').textContent = currentUser.name;
-        document.getElementById('current-user-avatar').src = currentUser.avatar;
-        document.getElementById('edit-name').value = "";
-        alert("Cambios guardados con éxito.");
-    } catch (err) {
-        alert("Error de sincronización.");
-    }
-});
+        document.getElementById('current-user-avatar').src = user.avatar;
+        document.getElementById('current-user-name').textContent = user.name;
+        document.getElementById('current-user-nickname').textContent = user.nickname;
+    },
 
-// ENVIAR MENSAJES (PREVENCIÓN DE ACTUALIZACIÓN FORZADA)
-const sendMessage = () => {
-    const input = document.getElementById('message-input');
-    const msg = input.value.trim();
-
-    if (msg && currentUser) {
-        push(ref(db, 'messages'), {
-            userKey: currentUser.nickname.replace('@', ''),
-            message: msg,
-            timestamp: Date.now()
-        });
-        input.value = '';
-    }
-};
-
-document.getElementById('btn-send-message').addEventListener('click', sendMessage);
-document.getElementById('message-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
-});
-
-// ESCUCHAR MENSAJES EN ENTRADA
-onChildAdded(ref(db, 'messages'), async (snapshot) => {
-    const data = snapshot.val();
-    
-    try {
-        const authorSnap = await get(child(dbRef, `users/${data.userKey}`));
-        let authorData = { name: "Usuario", nickname: "@unknown", avatar: "" };
-        
-        if (authorSnap.exists()) {
-            authorData = authorSnap.val();
-        }
-
+    renderMessage(data, authorData, isMe) {
         const msgRow = document.createElement('div');
         msgRow.classList.add('msg-row');
-        
-        const isMe = currentUser && authorData.nickname === currentUser.nickname;
         if (isMe) msgRow.classList.add('msg-row-me');
 
         const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         msgRow.innerHTML = `
-            <img src="${authorData.avatar || ''}" class="msg-img custom-avatar">
+            <img src="${authorData.avatar || ''}" class="msg-img custom-avatar" alt="Avatar">
             <div class="msg-bubble">
                 <div class="msg-meta">
                     <span class="meta-name">${authorData.name}</span>
@@ -210,43 +77,187 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
             </div>
         `;
 
-        const box = document.getElementById('chat-box');
-        box.appendChild(msgRow);
-        box.scrollTop = box.scrollHeight;
-    } catch (err) {
-        console.error(err);
+        this.inputs.chatBox.appendChild(msgRow);
+        this.inputs.chatBox.scrollTop = this.inputs.chatBox.scrollHeight;
+    },
+
+    utils: {
+        getBase64(file, callback) {
+            const reader = new FileReader();
+            reader.onloadend = () => callback(reader.result);
+            reader.readAsDataURL(file);
+        }
+    }
+};
+
+// ==========================================================================
+// 3. MÓDULO DE SERVICIOS (FIREBASE & STORAGE)
+// ==========================================================================
+const AuthService = {
+    async register(name, nickname, password, avatarBase64) {
+        const cleanNick = nickname.replace('@', '').toLowerCase();
+        const snapshot = await get(child(dbRef, `users/${cleanNick}`));
+        
+        if (snapshot.exists()) throw new Error("ID_EXISTENTE");
+
+        const userData = { name, nickname: '@' + cleanNick, password, avatar: avatarBase64 };
+        await set(ref(db, `users/${cleanNick}`), userData);
+        return userData;
+    },
+
+    async login(nickname, password) {
+        const cleanNick = nickname.replace('@', '').toLowerCase();
+        const snapshot = await get(child(dbRef, `users/${cleanNick}`));
+
+        if (!snapshot.exists()) throw new Error("USER_NOT_FOUND");
+        
+        const userData = snapshot.val();
+        if (userData.password !== password) throw new Error("INVALID_PASSWORD");
+        
+        return userData;
+    },
+
+    async updateProfile(userKey, newName, avatarBase64) {
+        const updates = {};
+        if (newName) updates.name = newName;
+        if (avatarBase64) updates.avatar = avatarBase64;
+
+        await update(ref(db, `users/${userKey}`), updates);
+    }
+};
+
+const ChatService = {
+    sendMessage(userKey, message) {
+        push(ref(db, 'messages'), {
+            userKey: userKey,
+            message: message,
+            timestamp: Date.now()
+        });
+    },
+
+    listenMessages(callback) {
+        onChildAdded(ref(db, 'messages'), async (snapshot) => {
+            const data = snapshot.val();
+            const authorSnap = await get(child(dbRef, `users/${data.userKey}`));
+            let authorData = { name: "Usuario", nickname: "@unknown", avatar: "" };
+            
+            if (authorSnap.exists()) authorData = authorSnap.val();
+            callback(data, authorData);
+        });
+    }
+};
+
+// ==========================================================================
+// 4. CONTROLADORES DE EVENTOS (LISTENERS)
+// ==========================================================================
+
+// Cambios de Vista de Autenticación
+document.getElementById('go-to-register').addEventListener('click', () => UI.switchAuthMode('register'));
+document.getElementById('go-to-login').addEventListener('click', () => UI.switchAuthMode('login'));
+
+// Captura de Imágenes
+document.getElementById('reg-avatar').addEventListener('change', (e) => {
+    if (e.target.files[0]) {
+        UI.utils.getBase64(e.target.files[0], (base64) => {
+            tempRegisterAvatar = base64;
+            const preview = document.getElementById('reg-preview');
+            preview.src = base64;
+            preview.classList.remove('hidden');
+        });
     }
 });
 
-// CAMBIAR PANTALLA
-function loadChatInterface() {
-    authScreen.classList.add('hidden');
-    chatScreen.classList.remove('hidden');
+document.getElementById('edit-avatar').addEventListener('change', (e) => {
+    if (e.target.files[0]) UI.utils.getBase64(e.target.files[0], (base64) => tempEditAvatar = base64);
+});
 
-    document.getElementById('current-user-avatar').src = currentUser.avatar;
-    document.getElementById('current-user-name').textContent = currentUser.name;
-    document.getElementById('current-user-nickname').textContent = currentUser.nickname;
-}
+// Acción: Registro
+document.getElementById('btn-register-submit').addEventListener('click', async () => {
+    const name = document.getElementById('reg-name').value.trim();
+    const nickname = document.getElementById('reg-nickname').value.trim();
+    const password = document.getElementById('reg-password').value;
 
-// LOGOUT
+    if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Completa todos los datos.");
+
+    try {
+        currentUser = await AuthService.register(name, nickname, password, tempRegisterAvatar);
+        localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
+        UI.showChat(currentUser);
+    } catch (err) {
+        alert(err.message === "ID_EXISTENTE" ? "El ID de usuario ya está ocupado." : "Error de red.");
+    }
+});
+
+// Acción: Inicio de Sesión
+document.getElementById('btn-login-submit').addEventListener('click', async () => {
+    const nickname = document.getElementById('login-nickname').value.trim();
+    const password = document.getElementById('login-password').value;
+
+    if (!nickname || !password) return alert("Ingresa tus credenciales.");
+
+    try {
+        currentUser = await AuthService.login(nickname, password);
+        localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
+        UI.showChat(currentUser);
+    } catch (err) {
+        alert(err.message === "USER_NOT_FOUND" ? "El ID no existe." : "Contraseña incorrecta.");
+    }
+});
+
+// Acción: Actualizar Cuenta
+document.getElementById('save-profile-btn').addEventListener('click', async () => {
+    const newName = document.getElementById('edit-name').value.trim();
+    const userKey = currentUser.nickname.replace('@', '');
+
+    if (!newName && !tempEditAvatar) return alert("No hay cambios.");
+
+    try {
+        await AuthService.updateProfile(userKey, newName, tempEditAvatar);
+        if (newName) currentUser.name = newName;
+        if (tempEditAvatar) currentUser.avatar = tempEditAvatar;
+
+        localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
+        UI.showChat(currentUser);
+        document.getElementById('edit-name').value = "";
+        alert("Perfil actualizado.");
+    } catch (err) { alert("Error al guardar."); }
+});
+
+// Flujo de Mensajería
+const triggerSend = () => {
+    const msg = UI.inputs.message.value.trim();
+    if (msg && currentUser) {
+        ChatService.sendMessage(currentUser.nickname.replace('@', ''), msg);
+        UI.inputs.message.value = '';
+    }
+};
+
+document.getElementById('btn-send-message').addEventListener('click', triggerSend);
+UI.inputs.message.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerSend(); });
+
+// Inicialización de Escucha en Tiempo Real
+ChatService.listenMessages((data, authorData) => {
+    const isMe = currentUser && authorData.nickname === currentUser.nickname;
+    UI.renderMessage(data, authorData, isMe);
+});
+
+// Temas y Logout
 document.getElementById('logout-btn').addEventListener('click', () => {
-    localStorage.removeItem('chat_session_v3');
+    localStorage.removeItem('chat_session_v4');
     location.reload();
 });
 
-// MANEJO DE TEMAS
 document.querySelectorAll('[data-set-theme]').forEach(dot => {
     dot.addEventListener('click', (e) => {
-        const targetTheme = e.target.getAttribute('data-set-theme');
-        document.body.setAttribute('data-theme', targetTheme);
+        document.body.setAttribute('data-theme', e.target.getAttribute('data-set-theme'));
         document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
         e.target.classList.add('active');
     });
 });
 
-// CARGA DE SESIONES ACTIVAS AUTOMÁTICAS
-const activeSession = localStorage.getItem('chat_session_v3');
-if (activeSession) {
-    currentUser = JSON.parse(activeSession);
-    loadChatInterface();
+// Auto-Login mediante sesión guardada
+const saved = localStorage.getItem('chat_session_v4');
+if (saved) {
+    currentUser = JSON.parse(saved);
+    UI.showChat(currentUser);
 }
