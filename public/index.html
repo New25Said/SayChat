@@ -6,7 +6,7 @@
     <title>Multichat Compact Retro-Modern</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=ABC+Ginto+Normal:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body data-theme="rose">
@@ -19,27 +19,27 @@
             
             <div id="login-area">
                 <h2>Iniciar Sesión</h2>
-                <form id="login-form">
+                <form id="login-form" onsubmit="return false;">
                     <input type="text" id="login-nickname" placeholder="Nickname (ej: sai)" required autocomplete="off">
                     <input type="password" id="login-password" placeholder="Contraseña" required>
-                    <button type="submit" class="btn-retro">Ingresar</button>
+                    <button type="button" id="btn-login-submit" class="btn-retro">Ingresar</button>
                 </form>
                 <p class="switch-text">¿Nuevo en el servidor? <span id="go-to-register">Registrar cuenta</span></p>
             </div>
 
             <div id="register-area" class="hidden">
                 <h2>Crear Cuenta</h2>
-                <form id="register-form">
+                <form id="register-form" onsubmit="return false;">
                     <input type="text" id="reg-name" placeholder="Nombre Mostrado" required autocomplete="off">
                     <input type="text" id="reg-nickname" placeholder="Nickname Único (ID)" required autocomplete="off">
                     <input type="password" id="reg-password" placeholder="Contraseña" required>
                     
                     <div class="file-zone">
                         <label for="reg-avatar">Seleccionar Foto Perfil</label>
-                        <input type="file" id="reg-avatar" accept="image/*" required>
+                        <input type="file" id="reg-avatar" accept="image/*">
                         <img id="reg-preview" src="" alt="Preview" class="hidden custom-avatar">
                     </div>
-                    <button type="submit" class="btn-retro">Inicializar Cuenta</button>
+                    <button type="button" id="btn-register-submit" class="btn-retro">Inicializar Cuenta</button>
                 </form>
                 <p class="switch-text">¿Ya tienes ID? <span id="go-to-login">Volver a Login</span></p>
             </div>
@@ -68,19 +68,19 @@
                             <label for="edit-avatar">Cambiar Foto</label>
                             <input type="file" id="edit-avatar" accept="image/*">
                         </div>
-                        <button id="save-profile-btn" class="btn-retro-small">Actualizar Perfil</button>
+                        <button type="button" id="save-profile-btn" class="btn-retro-small">Actualizar Perfil</button>
                     </div>
                 </div>
 
                 <div class="sidebar-bottom">
                     <span class="section-label">TEMA PRINCIPAL</span>
                     <div class="theme-selector">
-                        <button class="theme-dot dot-rose active" data-set-theme="rose" title="Rosa/Rojo"></button>
-                        <button class="theme-dot dot-cyan" data-set-theme="cyan" title="Cian/Cyber"></button>
-                        <button class="theme-dot dot-amber" data-set-theme="amber" title="Ámbar/Retro"></button>
-                        <button class="theme-dot dot-emerald" data-set-theme="emerald" title="Esmeralda"></button>
+                        <button type="button" class="theme-dot dot-rose active" data-set-theme="rose" title="Rosa/Rojo"></button>
+                        <button type="button" class="theme-dot dot-cyan" data-set-theme="cyan" title="Cian/Cyber"></button>
+                        <button type="button" class="theme-dot dot-amber" data-set-theme="amber" title="Ámbar/Retro"></button>
+                        <button type="button" class="theme-dot dot-emerald" data-set-theme="emerald" title="Esmeralda"></button>
                     </div>
-                    <button id="logout-btn" class="btn-logout">Desconectarse</button>
+                    <button type="button" id="logout-btn" class="btn-logout">Desconectarse</button>
                 </div>
             </aside>
 
@@ -92,192 +92,15 @@
                 <main id="chat-box">
                     </main>
                 
-                <form id="chat-form">
+                <form id="chat-form" onsubmit="return false;">
                     <input type="text" id="message-input" placeholder="Enviar mensaje a #sala-general..." required autocomplete="off">
-                    <button type="submit" class="btn-retro">Enviar</button>
+                    <button type="button" id="btn-send-message" class="btn-retro">Enviar</button>
                 </form>
             </section>
 
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, onChildAdded, get, child, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
-            authDomain: "seichato.firebaseapp.com",
-            databaseURL: "https://seichato-default-rtdb.firebaseio.com",
-            projectId: "seichato",
-            storageBucket: "seichato.firebasestorage.app",
-            messagingSenderId: "141497749351",
-            appId: "1:141497749351:web:163d6a94738bf5acdfe9c2",
-            measurementId: "G-9635Z02KGL"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const dbRef = ref(db);
-
-        // Estructuras de control de la UI
-        let currentUser = null;
-        let tempRegisterAvatar = "";
-        let tempEditAvatar = "";
-
-        // Navegación de autenticación
-        document.getElementById('go-to-register').addEventListener('click', () => {
-            document.getElementById('login-area').classList.add('hidden');
-            document.getElementById('register-area').classList.remove('hidden');
-        });
-        document.getElementById('go-to-login').addEventListener('click', () => {
-            document.getElementById('register-area').classList.add('hidden');
-            document.getElementById('login-area').classList.remove('hidden');
-        });
-
-        // Conversor universal de Imagen a Base64
-        const handleImageUpload = (inputElement, callback) => {
-            inputElement.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => callback(reader.result);
-                    reader.readAsDataURL(file);
-                }
-            });
-        };
-
-        handleImageUpload(document.getElementById('reg-avatar'), (base64) => {
-            tempRegisterAvatar = base64;
-            const preview = document.getElementById('reg-preview');
-            preview.src = base64;
-            preview.classList.remove('hidden');
-        });
-
-        handleImageUpload(document.getElementById('edit-avatar'), (base64) => {
-            tempEditAvatar = base64;
-        });
-
-        // REGISTRO
-        document.getElementById('register-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value.trim();
-            let nickname = document.getElementById('reg-nickname').value.trim().toLowerCase().replace('@', '');
-            const password = document.getElementById('reg-password').value;
-
-            if (!tempRegisterAvatar) return alert("Sube una foto de perfil.");
-
-            try {
-                const snapshot = await get(child(dbRef, `users/${nickname}`));
-                if (snapshot.exists()) return alert("El ID de usuario ya existe.");
-
-                const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
-                await update(ref(db, `users/${nickname}`), userData);
-
-                currentUser = userData;
-                localStorage.setItem('chat_session_v3', JSON.stringify(currentUser));
-                loadChatInterface();
-            } catch (err) { alert("Error de base de datos."); }
-        });
-
-        // LOGIN
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            let nickname = document.getElementById('login-nickname').value.trim().toLowerCase().replace('@', '');
-            const password = document.getElementById('login-password').value;
-
-            try {
-                const snapshot = await get(child(dbRef, `users/${nickname}`));
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    if (userData.password === password) {
-                        currentUser = userData;
-                        localStorage.setItem('chat_session_v3', JSON.stringify(currentUser));
-                        loadChatInterface();
-                    } else { alert("Contraseña incorrecta."); }
-                } else { alert("El usuario no existe."); }
-            } catch (err) { alert("Error de conexión."); }
-        });
-
-        // ACTUALIZAR PERFIL (Solo Nickname de pantalla y Foto, la Llave/User de base de datos no cambia)
-        document.getElementById('save-profile-btn').addEventListener('click', async () => {
-            const newName = document.getElementById('edit-name').value.trim();
-            const userKey = currentUser.nickname.replace('@', '');
-
-            if (!newName && !tempEditAvatar) return alert("No hay cambios que realizar.");
-
-            if (newName) currentUser.name = newName;
-            if (tempEditAvatar) currentUser.avatar = tempEditAvatar;
-
-            try {
-                await update(ref(db, `users/${userKey}`), {
-                    name: currentUser.name,
-                    avatar: currentUser.avatar
-                });
-                localStorage.setItem('chat_session_v3', JSON.stringify(currentUser));
-                document.getElementById('current-user-name').textContent = currentUser.name;
-                document.getElementById('current-user-avatar').src = currentUser.avatar;
-                document.getElementById('edit-name').value = "";
-                alert("Perfil actualizado con éxito.");
-            } catch (err) { alert("Error al actualizar."); }
-        });
-
-        // LOGOUT
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            localStorage.removeItem('chat_session_v3');
-            location.reload();
-        });
-
-        // CAMBIAR INTERFAZ AL CHAT
-        function loadChatInterface() {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('chat-screen').classList.remove('hidden');
-
-            document.getElementById('current-user-avatar').src = currentUser.avatar;
-            document.getElementById('current-user-name').textContent = currentUser.name;
-            document.getElementById('current-user-nickname').textContent = currentUser.nickname;
-        }
-
-        // ENVIAR MENSAJES
-        document.getElementById('chat-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const input = document.getElementById('message-input');
-            const msg = input.value.trim();
-
-            if (msg && currentUser) {
-                // Enviamos el mensaje referenciando el userKey de base de datos para jalar datos en vivo si cambian
-                push(ref(db, 'messages'), {
-                    userKey: currentUser.nickname.replace('@', ''),
-                    message: msg,
-                    timestamp: Date.now()
-                });
-                input.value = '';
-            }
-        });
-
-        // ESCUCHAR MENSAJES EN TIEMPO REAL CON PRE-RENDER DINÁMICO
-        onChildAdded(ref(db, 'messages'), async (snapshot) => {
-            const data = snapshot.val();
-            
-            // Traer datos actualizados del autor en tiempo real
-            const authorSnap = await get(child(dbRef, `users/${data.userKey}`));
-            let authorData = { name: "Usuario Eliminado", nickname: "@unknown", avatar: "" };
-            if (authorSnap.exists()) authorData = authorSnap.val();
-
-            const msgRow = document.createElement('div');
-            msgRow.classList.add('msg-row');
-            
-            const isMe = currentUser && authorData.nickname === currentUser.nickname;
-            if (isMe) msgRow.classList.add('msg-row-me');
-
-            const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            msgRow.innerHTML = `
-                <img src="${authorData.avatar}" class="msg-img custom-avatar">
-                <div class="msg-bubble">
-                    <div class="msg-meta">
-                        <span class="meta-name">${authorData.name}</span>
-                        <span class="meta-nick">${authorData.nickname}</span>
-                    </div>
-                    <p class="msg-body">${data.message}</p>
-                    <span class="msg-time">${
+    <script type="module" src="app.js"></script>
+</body>
+</html>
