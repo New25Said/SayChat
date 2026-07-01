@@ -3,19 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multichat Web</title>
+    <title>Multichat Web Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="chat-container">
+
+    <div id="login-container" class="auth-container">
+        <h2>🚀 Configura tu Perfil</h2>
+        <p>Elige cómo te verán los demás en el chat.</p>
+        <form id="login-form">
+            <input type="text" id="reg-name" placeholder="Nombre Real" required autocomplete="off">
+            <input type="text" id="reg-nickname" placeholder="Nickname (ej. @juanito)" required autocomplete="off">
+            
+            <label>Selecciona tu Avatar:</label>
+            <div class="avatar-selector">
+                <input type="radio" name="avatar" value="adventurer" id="av1" checked>
+                <label for="av1"><img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" alt="Avatar 1"></label>
+                
+                <input type="radio" name="avatar" value="bottts" id="av2">
+                <label for="av2"><img src="https://api.dicebear.com/7.x/bottts/svg?seed=Stitch" alt="Avatar 2"></label>
+                
+                <input type="radio" name="avatar" value="avataaars" id="av3">
+                <label for="av3"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Leo" alt="Avatar 3"></label>
+                
+                <input type="radio" name="avatar" value="lorelei" id="av4">
+                <label for="av4"><img src="https://api.dicebear.com/7.x/lorelei/svg?seed=Lily" alt="Avatar 4"></label>
+            </div>
+
+            <button type="submit">Ingresar al Chat</button>
+        </form>
+    </div>
+
+    <div id="chat-container" class="chat-container hidden">
         <header>
-            <h2>💬 Multichat Sala Pública</h2>
-            <input type="text" id="username" placeholder="Tu Nombre/Alias" required>
+            <div class="user-profile-header">
+                <img id="current-user-avatar" src="" alt="Tu Avatar" class="avatar-mini">
+                <div>
+                    <h2 id="current-user-name">Cargando...</h2>
+                    <span id="current-user-nickname">@nickname</span>
+                </div>
+            </div>
         </header>
         
         <main id="chat-box">
-            <!-- Los mensajes aparecerán aquí -->
-        </main>
+            </main>
         
         <form id="chat-form">
             <input type="text" id="message-input" placeholder="Escribe un mensaje..." required autocomplete="off">
@@ -23,12 +54,10 @@
         </form>
     </div>
 
-    <!-- Importamos Firebase desde CDN (Versión de módulos para navegadores modernos) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Tus credenciales de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
             authDomain: "seichato.firebaseapp.com",
@@ -40,49 +69,111 @@
             measurementId: "G-9635Z02KGL"
         };
 
-        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const messagesRef = ref(db, 'messages');
 
-        // Elementos del DOM
+        // Elementos de la interfaz
+        const loginContainer = document.getElementById('login-container');
+        const chatContainer = document.getElementById('chat-container');
+        const loginForm = document.getElementById('login-form');
         const chatBox = document.getElementById('chat-box');
         const chatForm = document.getElementById('chat-form');
         const messageInput = document.getElementById('message-input');
-        const usernameInput = document.getElementById('username');
+
+        // Datos del usuario local
+        let currentUser = null;
+
+        // Comprobar si ya existe sesión guardada en el navegador
+        function checkLocalSession() {
+            const savedUser = localStorage.getItem('chat_user_session');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                setupChatUI();
+            }
+        }
+
+        // Configurar la interfaz con los datos del usuario activo
+        function setupChatUI() {
+            loginContainer.classList.add('hidden');
+            chatContainer.classList.remove('hidden');
+            
+            document.getElementById('current-user-avatar').src = currentUser.avatarUrl;
+            document.getElementById('current-user-name').textContent = currentUser.name;
+            document.getElementById('current-user-nickname').textContent = currentUser.nickname;
+        }
+
+        // Manejar el Registro / Login inicial
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            let nickname = document.getElementById('reg-nickname').value.trim();
+            if (!nickname.startsWith('@')) nickname = '@' + nickname;
+
+            const selectedStyle = document.querySelector('input[name="avatar"]:checked').value;
+            // Generamos una URL única de avatar usando el nickname como semilla (seed)
+            const avatarUrl = `https://api.dicebear.com/7.x/${selectedStyle}/svg?seed=${nickname.replace('@', '')}`;
+
+            currentUser = { name, nickname, avatarUrl };
+            
+            // Guardar en el almacenamiento del navegador (Persistencia de por vida)
+            localStorage.setItem('chat_user_session', JSON.stringify(currentUser));
+            setupChatUI();
+        });
+
+        // Formatear timestamp a formato legible (HH:MM)
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
 
         // Escuchar nuevos mensajes en tiempo real
         onChildAdded(messagesRef, (snapshot) => {
             const data = snapshot.val();
             const messageElement = document.createElement('div');
-            messageElement.classList.add('message');
+            messageElement.classList.add('message-wrapper');
             
-            // Si el nombre coincide con el del usuario actual, le da un estilo diferente
-            if (data.username === usernameInput.value) {
-                messageElement.classList.add('my-message');
+            // Determinar si el mensaje es enviado por el usuario actual
+            const isMe = currentUser && data.nickname === currentUser.nickname;
+            if (isMe) {
+                messageElement.classList.add('my-message-wrapper');
             }
 
-            messageElement.innerHTML = `<strong>${data.username}:</strong> <span>${data.message}</span>`;
+            messageElement.innerHTML = `
+                <img src="${data.avatarUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=Anon'}" alt="Avatar" class="message-avatar">
+                <div class="message-content">
+                    <div class="message-info">
+                        <span class="msg-username">${data.name}</span>
+                        <span class="msg-nickname">${data.nickname}</span>
+                    </div>
+                    <p class="msg-text">${data.message}</p>
+                    <span class="msg-time">${formatTime(data.timestamp)}</span>
+                </div>
+            `;
+            
             chatBox.appendChild(messageElement);
-            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll al final
+            chatBox.scrollTop = chatBox.scrollHeight;
         });
 
-        // Enviar mensaje a Firebase
+        // Enviar mensaje adjuntando los datos del perfil
         chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            
-            const username = usernameInput.value.trim() || 'Anónimo';
             const message = messageInput.value.trim();
 
-            if (message) {
+            if (message && currentUser) {
                 push(messagesRef, {
-                    username: username,
+                    name: currentUser.name,
+                    nickname: currentUser.nickname,
+                    avatarUrl: currentUser.avatarUrl,
                     message: message,
                     timestamp: Date.now()
                 });
-                messageInput.value = ''; // Limpiar input
+                messageInput.value = '';
             }
         });
+
+        // Inicializar verificación
+        checkLocalSession();
     </script>
 </body>
 </html>
