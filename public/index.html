@@ -3,60 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multichat Web Pro</title>
+    <title>Multichat Fullscreen Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="login-container" class="auth-container">
-        <h2>🚀 Configura tu Perfil</h2>
-        <p>Elige cómo te verán los demás en el chat.</p>
-        <form id="login-form">
-            <input type="text" id="reg-name" placeholder="Nombre Real" required autocomplete="off">
-            <input type="text" id="reg-nickname" placeholder="Nickname (ej. @juanito)" required autocomplete="off">
-            
-            <label>Selecciona tu Avatar:</label>
-            <div class="avatar-selector">
-                <input type="radio" name="avatar" value="adventurer" id="av1" checked>
-                <label for="av1"><img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" alt="Avatar 1"></label>
-                
-                <input type="radio" name="avatar" value="bottts" id="av2">
-                <label for="av2"><img src="https://api.dicebear.com/7.x/bottts/svg?seed=Stitch" alt="Avatar 2"></label>
-                
-                <input type="radio" name="avatar" value="avataaars" id="av3">
-                <label for="av3"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Leo" alt="Avatar 3"></label>
-                
-                <input type="radio" name="avatar" value="lorelei" id="av4">
-                <label for="av4"><img src="https://api.dicebear.com/7.x/lorelei/svg?seed=Lily" alt="Avatar 4"></label>
-            </div>
-
-            <button type="submit">Ingresar al Chat</button>
-        </form>
+    <div id="login-screen" class="auth-screen">
+        <div class="auth-box">
+            <h2>💬 Iniciar Sesión</h2>
+            <form id="login-form">
+                <input type="text" id="login-nickname" placeholder="Nickname (ej: @sai)" required autocomplete="off">
+                <input type="password" id="login-password" placeholder="Contraseña" required>
+                <button type="submit" class="btn-main">Ingresar</button>
+            </form>
+            <p class="auth-switch">¿No tienes cuenta? <span id="go-to-register">Regístrate aquí</span></p>
+        </div>
     </div>
 
-    <div id="chat-container" class="chat-container hidden">
-        <header>
-            <div class="user-profile-header">
-                <img id="current-user-avatar" src="" alt="Tu Avatar" class="avatar-mini">
-                <div>
-                    <h2 id="current-user-name">Cargando...</h2>
-                    <span id="current-user-nickname">@nickname</span>
+    <div id="register-screen" class="auth-screen hidden">
+        <div class="auth-box">
+            <h2>🚀 Crear Cuenta</h2>
+            <form id="register-form">
+                <input type="text" id="reg-name" placeholder="Nombre Completo" required autocomplete="off">
+                <input type="text" id="reg-nickname" placeholder="Nickname Único (ej: @sai)" required autocomplete="off">
+                <input type="password" id="reg-password" placeholder="Contraseña" required>
+                
+                <div class="file-select-area">
+                    <label for="reg-avatar">Subir Foto de Perfil:</label>
+                    <input type="file" id="reg-avatar" accept="image/*" required>
+                    <div id="avatar-preview-container">
+                        <img id="avatar-preview" src="" alt="Vista previa" class="hidden">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-main">Crear Cuenta e Ingresar</button>
+            </form>
+            <p class="auth-switch">¿Ya tienes cuenta? <span id="go-to-login">Inicia sesión aquí</span></p>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="chat-fullscreen hidden">
+        <aside class="sidebar">
+            <div class="sidebar-profile">
+                <img id="current-user-avatar" src="" alt="Mi Foto">
+                <div class="profile-info">
+                    <h3 id="current-user-name">Cargando...</h3>
+                    <span id="current-user-nickname">@nick</span>
                 </div>
             </div>
-        </header>
-        
-        <main id="chat-box">
-            </main>
-        
-        <form id="chat-form">
-            <input type="text" id="message-input" placeholder="Escribe un mensaje..." required autocomplete="off">
-            <button type="submit">Enviar</button>
-        </form>
+            <div class="sidebar-actions">
+                <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <section class="chat-main-area">
+            <header class="chat-header">
+                <h2>💬 Sala Pública General</h2>
+            </header>
+            
+            <main id="chat-box">
+                </main>
+            
+            <form id="chat-form">
+                <input type="text" id="message-input" placeholder="Escribe tu mensaje aquí..." required autocomplete="off">
+                <button type="submit">Enviar</button>
+            </form>
+        </section>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, onChildAdded, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
@@ -71,100 +88,153 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const messagesRef = ref(db, 'messages');
+        const dbRef = ref(db);
 
-        // Elementos de la interfaz
-        const loginContainer = document.getElementById('login-container');
-        const chatContainer = document.getElementById('chat-container');
+        // Pantallas
+        const loginScreen = document.getElementById('login-screen');
+        const registerScreen = document.getElementById('register-screen');
+        const chatScreen = document.getElementById('chat-screen');
+
+        // Formularios y Elementos
         const loginForm = document.getElementById('login-form');
-        const chatBox = document.getElementById('chat-box');
+        const registerForm = document.getElementById('register-form');
         const chatForm = document.getElementById('chat-form');
+        const chatBox = document.getElementById('chat-box');
         const messageInput = document.getElementById('message-input');
+        const regAvatar = document.getElementById('reg-avatar');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const logoutBtn = document.getElementById('logout-btn');
 
-        // Datos del usuario local
         let currentUser = null;
+        let base64Avatar = "";
 
-        // Comprobar si ya existe sesión guardada en el navegador
-        function checkLocalSession() {
-            const savedUser = localStorage.getItem('chat_user_session');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                setupChatUI();
+        // Cambios de Pantalla manuales
+        document.getElementById('go-to-register').addEventListener('click', () => {
+            loginScreen.classList.add('hidden');
+            registerScreen.classList.remove('hidden');
+        });
+        document.getElementById('go-to-login').addEventListener('click', () => {
+            registerScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        });
+
+        // Convertir Imagen subida a Base64
+        regAvatar.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    base64Avatar = reader.result; // Aquí está el string Base64 largo
+                    avatarPreview.src = base64Avatar;
+                    avatarPreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
             }
-        }
+        });
 
-        // Configurar la interfaz con los datos del usuario activo
-        function setupChatUI() {
-            loginContainer.classList.add('hidden');
-            chatContainer.classList.remove('hidden');
-            
-            document.getElementById('current-user-avatar').src = currentUser.avatarUrl;
+        // REGISTRO DE USUARIO
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            let nickname = document.getElementById('reg-nickname').value.trim().toLowerCase();
+            if (!nickname.startsWith('@')) nickname = '@' + nickname;
+            const password = document.getElementById('reg-password').value;
+
+            if (!base64Avatar) {
+                alert("Por favor sube una foto de perfil.");
+                return;
+            }
+
+            // Limpiar el nickname para usarlo como llave limpia en Firebase sin el '@'
+            const userKey = nickname.replace('@', '');
+
+            try {
+                const snapshot = await get(child(dbRef, `users/${userKey}`));
+                if (snapshot.exists()) {
+                    alert("Este nickname ya está registrado. Elige otro.");
+                } else {
+                    // Guardar nueva cuenta en Firebase
+                    const userData = { name, nickname, password, avatar: base64Avatar };
+                    const userRef = ref(db, `users/${userKey}`);
+                    
+                    // Guardamos la configuración completa del usuario
+                    await push(userRef, userData); // Nota: para simplificar estructuración directa, usamos set o push.
+                    // Para que sea una llave directa sin IDs raros:
+                    const { set } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+                    await set(ref(db, `users/${userKey}`), userData);
+
+                    currentUser = userData;
+                    localStorage.setItem('chat_session_v2', JSON.stringify(currentUser));
+                    initChatUI();
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error al registrar cuenta.");
+            }
+        });
+
+        // INICIO DE SESIÓN
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let nickname = document.getElementById('login-nickname').value.trim().toLowerCase();
+            if (!nickname.startsWith('@')) nickname = '@' + nickname;
+            const password = document.getElementById('login-password').value;
+
+            const userKey = nickname.replace('@', '');
+
+            try {
+                const snapshot = await get(child(dbRef, `users/${userKey}`));
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    if (userData.password === password) {
+                        currentUser = userData;
+                        localStorage.setItem('chat_session_v2', JSON.stringify(currentUser));
+                        initChatUI();
+                    } else {
+                        alert("Contraseña incorrecta.");
+                    }
+                } else {
+                    alert("El usuario no existe.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error al iniciar sesión.");
+            }
+        });
+
+        // CERRAR SESIÓN
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('chat_session_v2');
+            location.reload(); // Recarga y limpia la app volviendo al Login
+        });
+
+        // Inicializar interfaz del chat
+        function initChatUI() {
+            loginScreen.classList.add('hidden');
+            registerScreen.classList.add('hidden');
+            chatScreen.classList.remove('hidden');
+
+            document.getElementById('current-user-avatar').src = currentUser.avatar;
             document.getElementById('current-user-name').textContent = currentUser.name;
             document.getElementById('current-user-nickname').textContent = currentUser.nickname;
         }
 
-        // Manejar el Registro / Login inicial
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value.trim();
-            let nickname = document.getElementById('reg-nickname').value.trim();
-            if (!nickname.startsWith('@')) nickname = '@' + nickname;
-
-            const selectedStyle = document.querySelector('input[name="avatar"]:checked').value;
-            // Generamos una URL única de avatar usando el nickname como semilla (seed)
-            const avatarUrl = `https://api.dicebear.com/7.x/${selectedStyle}/svg?seed=${nickname.replace('@', '')}`;
-
-            currentUser = { name, nickname, avatarUrl };
-            
-            // Guardar en el almacenamiento del navegador (Persistencia de por vida)
-            localStorage.setItem('chat_user_session', JSON.stringify(currentUser));
-            setupChatUI();
-        });
-
-        // Formatear timestamp a formato legible (HH:MM)
+        // Formato de hora
         function formatTime(timestamp) {
             const date = new Date(timestamp);
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Escuchar nuevos mensajes en tiempo real
-        onChildAdded(messagesRef, (snapshot) => {
-            const data = snapshot.val();
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message-wrapper');
-            
-            // Determinar si el mensaje es enviado por el usuario actual
-            const isMe = currentUser && data.nickname === currentUser.nickname;
-            if (isMe) {
-                messageElement.classList.add('my-message-wrapper');
-            }
-
-            messageElement.innerHTML = `
-                <img src="${data.avatarUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=Anon'}" alt="Avatar" class="message-avatar">
-                <div class="message-content">
-                    <div class="message-info">
-                        <span class="msg-username">${data.name}</span>
-                        <span class="msg-nickname">${data.nickname}</span>
-                    </div>
-                    <p class="msg-text">${data.message}</p>
-                    <span class="msg-time">${formatTime(data.timestamp)}</span>
-                </div>
-            `;
-            
-            chatBox.appendChild(messageElement);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
-
-        // Enviar mensaje adjuntando los datos del perfil
+        // ENVIAR MENSAJE
         chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const message = messageInput.value.trim();
 
             if (message && currentUser) {
-                push(messagesRef, {
-                    name: currentUser.name,
+                push(ref(db, 'messages'), {
                     nickname: currentUser.nickname,
-                    avatarUrl: currentUser.avatarUrl,
+                    name: currentUser.name,
+                    avatar: currentUser.avatar, // Guardamos la foto en el mensaje para render instantáneo rápido
                     message: message,
                     timestamp: Date.now()
                 });
@@ -172,8 +242,37 @@
             }
         });
 
-        // Inicializar verificación
-        checkLocalSession();
+        // ESCUCHAR MENSAJES EN TIEMPO REAL
+        onChildAdded(ref(db, 'messages'), (snapshot) => {
+            const data = snapshot.val();
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('msg-row');
+
+            const isMe = currentUser && data.nickname === currentUser.nickname;
+            if (isMe) messageElement.classList.add('msg-row-me');
+
+            messageElement.innerHTML = `
+                <img src="${data.avatar}" alt="Avatar" class="msg-img">
+                <div class="msg-bubble">
+                    <div class="msg-meta">
+                        <span class="meta-name">${data.name}</span>
+                        <span class="meta-nick">${data.nickname}</span>
+                    </div>
+                    <p class="msg-body">${data.message}</p>
+                    <span class="msg-time">${formatTime(data.timestamp)}</span>
+                </div>
+            `;
+
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        // Comprobar persistencia al cargar
+        const savedSession = localStorage.getItem('chat_session_v2');
+        if (savedSession) {
+            currentUser = JSON.parse(savedSession);
+            initChatUI();
+        }
     </script>
 </body>
 </html>
