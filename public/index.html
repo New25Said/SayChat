@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multichat Premium Retro-Modern</title>
+    <title>Multichat Compact Retro-Modern</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -12,60 +12,36 @@
 <body data-theme="rose">
 
     <div id="auth-screen" class="window-screen">
-        <div class="retro-terminal-box animate-fade">
-            <div class="terminal-header">
-                <div class="terminal-dots">
-                    <span class="dot-red"></span>
-                    <span class="dot-yellow"></span>
-                    <span class="dot-green"></span>
-                </div>
-                <span class="terminal-title">SAYCHAT // CORE_AUTH_v4.0</span>
+        <div class="compact-box animate-fade">
+            <div class="box-header">
+                <span class="box-title">⚡ SEICHAT // AUTH_SYS</span>
             </div>
             
-            <div class="terminal-body">
-                <div id="login-area" class="auth-transition">
-                    <h2 class="section-title">> INICIAR_SESIÓN</h2>
-                    <form id="login-form" onsubmit="return false;">
-                        <div class="input-group">
-                            <label>ID_USUARIO</label>
-                            <input type="text" id="login-nickname" placeholder="ej: sai" required autocomplete="off">
-                        </div>
-                        <div class="input-group">
-                            <label>PASSWORD</label>
-                            <input type="password" id="login-password" placeholder="••••••••" required>
-                        </div>
-                        <button type="button" id="btn-login-submit" class="btn-retro-fluid">Acceder al Sistema</button>
-                    </form>
-                    <p class="switch-text">¿Falta de registro? <span id="go-to-register">CREAR_CUENTA</span></p>
-                </div>
+            <div id="login-area">
+                <h2>Iniciar Sesión</h2>
+                <form id="login-form" onsubmit="return false;">
+                    <input type="text" id="login-nickname" placeholder="Nickname (ej: sai)" required autocomplete="off">
+                    <input type="password" id="login-password" placeholder="Contraseña" required>
+                    <button type="button" id="btn-login-submit" class="btn-retro">Ingresar</button>
+                </form>
+                <p class="switch-text">¿Nuevo en el servidor? <span id="go-to-register">Registrar cuenta</span></p>
+            </div>
 
-                <div id="register-area" class="auth-transition hidden">
-                    <h2 class="section-title">> CREAR_PERFIL</h2>
-                    <form id="register-form" onsubmit="return false;">
-                        <div class="input-group">
-                            <label>NOMBRE_MOSTRADO</label>
-                            <input type="text" id="reg-name" placeholder="Tu Nombre" required autocomplete="off">
-                        </div>
-                        <div class="input-group">
-                            <label>ID_NICKNAME</label>
-                            <input type="text" id="reg-nickname" placeholder="ej: sai" required autocomplete="off">
-                        </div>
-                        <div class="input-group">
-                            <label>PASSWORD</label>
-                            <input type="password" id="reg-password" placeholder="Crear contraseña" required>
-                        </div>
-                        
-                        <div class="file-zone-retro">
-                            <label for="reg-avatar" class="file-label-btn">ASIGNAR_FOTO.EXE</label>
-                            <input type="file" id="reg-avatar" accept="image/*">
-                            <div class="preview-frame">
-                                <img id="reg-preview" src="" alt="Preview" class="hidden custom-avatar">
-                            </div>
-                        </div>
-                        <button type="button" id="btn-register-submit" class="btn-retro-fluid">Registrar e Ingresar</button>
-                    </form>
-                    <p class="switch-text">¿Ya posees ID? <span id="go-to-login">VOLVER_A_LOGIN</span></p>
-                </div>
+            <div id="register-area" class="hidden">
+                <h2>Crear Cuenta</h2>
+                <form id="register-form" onsubmit="return false;">
+                    <input type="text" id="reg-name" placeholder="Nombre Mostrado" required autocomplete="off">
+                    <input type="text" id="reg-nickname" placeholder="Nickname Único (ID)" required autocomplete="off">
+                    <input type="password" id="reg-password" placeholder="Contraseña" required>
+                    
+                    <div class="file-zone">
+                        <label for="reg-avatar">Seleccionar Foto Perfil</label>
+                        <input type="file" id="reg-avatar" accept="image/*">
+                        <img id="reg-preview" src="" alt="Preview" class="hidden custom-avatar">
+                    </div>
+                    <button type="button" id="btn-register-submit" class="btn-retro">Inicializar Cuenta</button>
+                </form>
+                <p class="switch-text">¿Ya tienes ID? <span id="go-to-login">Volver a Login</span></p>
             </div>
         </div>
     </div>
@@ -74,13 +50,11 @@
         <div class="chat-app-container animate-fade">
             
             <aside class="compact-sidebar">
-                <div class="sidebar-section-group">
-                    <div class="box-header-clean"><span class="box-title-mini">SYSTEM_USER</span></div>
+                <div class="sidebar-top">
+                    <div class="box-header"><span class="box-title">USER_INFO</span></div>
                     
-                    <div class="profile-card-premium">
-                        <div class="avatar-glow-wrapper">
-                            <img id="current-user-avatar" src="" alt="Avatar" class="custom-avatar">
-                        </div>
+                    <div class="profile-card">
+                        <img id="current-user-avatar" src="" alt="Avatar" class="custom-avatar">
                         <div class="profile-details">
                             <h3 id="current-user-name">---</h3>
                             <span id="current-user-nickname">@---</span>
@@ -88,42 +62,39 @@
                     </div>
 
                     <div class="edit-profile-box">
-                        <span class="section-label-mini">CONFIG_MODERATOR</span>
-                        <input type="text" id="edit-name" placeholder="Modificar nombre...">
+                        <span class="section-label">EDITAR PERFIL</span>
+                        <input type="text" id="edit-name" placeholder="Nuevo Nombre">
                         <div class="file-zone-mini">
-                            <label for="edit-avatar">REEMPLAZAR_FOTO</label>
+                            <label for="edit-avatar">Cambiar Foto</label>
                             <input type="file" id="edit-avatar" accept="image/*">
                         </div>
-                        <button type="button" id="save-profile-btn" class="btn-action-smooth">Actualizar Perfil</button>
+                        <button type="button" id="save-profile-btn" class="btn-retro-small">Actualizar Perfil</button>
                     </div>
                 </div>
 
-                <div class="sidebar-section-group footer-sidebar">
-                    <span class="section-label-mini">SYSTEM_THEME</span>
+                <div class="sidebar-bottom">
+                    <span class="section-label">TEMA PRINCIPAL</span>
                     <div class="theme-selector">
-                        <button type="button" class="theme-dot dot-rose active" data-set-theme="rose"></button>
-                        <button type="button" class="theme-dot dot-cyan" data-set-theme="cyan"></button>
-                        <button type="button" class="theme-dot dot-amber" data-set-theme="amber"></button>
-                        <button type="button" class="theme-dot dot-emerald" data-set-theme="emerald"></button>
+                        <button type="button" class="theme-dot dot-rose active" data-set-theme="rose" title="Rosa/Rojo"></button>
+                        <button type="button" class="theme-dot dot-cyan" data-set-theme="cyan" title="Cian/Cyber"></button>
+                        <button type="button" class="theme-dot dot-amber" data-set-theme="amber" title="Ámbar/Retro"></button>
+                        <button type="button" class="theme-dot dot-emerald" data-set-theme="emerald" title="Esmeralda"></button>
                     </div>
-                    <button type="button" id="logout-btn" class="btn-logout-smooth">DISCONNECT</button>
+                    <button type="button" id="logout-btn" class="btn-logout">Desconectarse</button>
                 </div>
             </aside>
 
             <section class="chat-main">
                 <header class="main-header">
-                    <div class="status-indicator-container">
-                        <span class="status-ping"></span>
-                        <span class="channel-indicator"># sala-publica-general</span>
-                    </div>
+                    <span class="channel-indicator"># sala-publica-general</span>
                 </header>
                 
                 <main id="chat-box">
                     </main>
                 
                 <form id="chat-form" onsubmit="return false;">
-                    <input type="text" id="message-input" placeholder="Enviar transmisión de texto..." required autocomplete="off">
-                    <button type="button" id="btn-send-message" class="btn-send-fluid">Enviar</button>
+                    <input type="text" id="message-input" placeholder="Enviar mensaje a #sala-general..." required autocomplete="off">
+                    <button type="button" id="btn-send-message" class="btn-retro">Enviar</button>
                 </form>
             </section>
 
