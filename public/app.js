@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, push, onChildAdded, get, child, set, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // ==========================================================================
-// 1. CONFIGURACIÃ“N E INICIALIZACIÃ“N
+// 1. CONFIGURACIÓN E INICIALIZACIÓN
 // ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
@@ -19,13 +19,13 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const dbRef = ref(db);
 
-// Estado de la aplicaciÃ³n
+// Estado de la aplicación
 let currentUser = null;
 let tempRegisterAvatar = "";
 let tempEditAvatar = "";
 
 // ==========================================================================
-// 2. MÃ“DULO DE INTERFAZ DE USUARIO (UI CONTROLLER)
+// 2. MÓDULO DE INTERFAZ DE USUARIO (UI CONTROLLER)
 // ==========================================================================
 const UI = {
     screens: {
@@ -91,7 +91,7 @@ const UI = {
 };
 
 // ==========================================================================
-// 3. MÃ“DULO DE SERVICIOS (FIREBASE & STORAGE)
+// 3. MÓDULO DE SERVICIOS (FIREBASE & STORAGE)
 // ==========================================================================
 const AuthService = {
     async register(name, nickname, password, avatarBase64) {
@@ -151,11 +151,11 @@ const ChatService = {
 // 4. CONTROLADORES DE EVENTOS (LISTENERS)
 // ==========================================================================
 
-// Cambios de Vista de AutenticaciÃ³n
+// Cambios de Vista de Autenticación
 document.getElementById('go-to-register').addEventListener('click', () => UI.switchAuthMode('register'));
 document.getElementById('go-to-login').addEventListener('click', () => UI.switchAuthMode('login'));
 
-// Captura de ImÃ¡genes
+// Captura de Imágenes
 document.getElementById('reg-avatar').addEventListener('change', (e) => {
     if (e.target.files[0]) {
         UI.utils.getBase64(e.target.files[0], (base64) => {
@@ -171,7 +171,7 @@ document.getElementById('edit-avatar').addEventListener('change', (e) => {
     if (e.target.files[0]) UI.utils.getBase64(e.target.files[0], (base64) => tempEditAvatar = base64);
 });
 
-// AcciÃ³n: Registro
+// Acción: Registro
 document.getElementById('btn-register-submit').addEventListener('click', async () => {
     const name = document.getElementById('reg-name').value.trim();
     const nickname = document.getElementById('reg-nickname').value.trim();
@@ -184,11 +184,11 @@ document.getElementById('btn-register-submit').addEventListener('click', async (
         localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
         UI.showChat(currentUser);
     } catch (err) {
-        alert(err.message === "ID_EXISTENTE" ? "El ID de usuario ya estÃ¡ ocupado." : "Error de red.");
+        alert(err.message === "ID_EXISTENTE" ? "El ID de usuario ya está ocupado." : "Error de red.");
     }
 });
 
-// AcciÃ³n: Inicio de SesiÃ³n
+// Acción: Inicio de Sesión
 document.getElementById('btn-login-submit').addEventListener('click', async () => {
     const nickname = document.getElementById('login-nickname').value.trim();
     const password = document.getElementById('login-password').value;
@@ -200,11 +200,11 @@ document.getElementById('btn-login-submit').addEventListener('click', async () =
         localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
         UI.showChat(currentUser);
     } catch (err) {
-        alert(err.message === "USER_NOT_FOUND" ? "El ID no existe." : "ContraseÃ±a incorrecta.");
+        alert(err.message === "USER_NOT_FOUND" ? "El ID no existe." : "Contraseña incorrecta.");
     }
 });
 
-// AcciÃ³n: Actualizar Cuenta
+// Acción: Actualizar Cuenta
 document.getElementById('save-profile-btn').addEventListener('click', async () => {
     const newName = document.getElementById('edit-name').value.trim();
     const userKey = currentUser.nickname.replace('@', '');
@@ -223,7 +223,7 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
     } catch (err) { alert("Error al guardar."); }
 });
 
-// Flujo de MensajerÃ­a
+// Flujo de Mensajería
 const triggerSend = () => {
     const msg = UI.inputs.message.value.trim();
     if (msg && currentUser) {
@@ -235,7 +235,7 @@ const triggerSend = () => {
 document.getElementById('btn-send-message').addEventListener('click', triggerSend);
 UI.inputs.message.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerSend(); });
 
-// InicializaciÃ³n de Escucha en Tiempo Real
+// Inicialización de Escucha en Tiempo Real
 ChatService.listenMessages((data, authorData) => {
     const isMe = currentUser && authorData.nickname === currentUser.nickname;
     UI.renderMessage(data, authorData, isMe);
@@ -255,7 +255,7 @@ document.querySelectorAll('[data-set-theme]').forEach(dot => {
     });
 });
 
-// Auto-Login mediante sesiÃ³n guardada
+// Auto-Login mediante sesión guardada
 const saved = localStorage.getItem('chat_session_v4');
 if (saved) {
     currentUser = JSON.parse(saved);
