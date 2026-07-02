@@ -11,11 +11,13 @@
 </head>
 <body data-theme="rose">
 
+    <!-- ELEMENTO DE AUDIO -->
     <audio id="noti-sound" src="noti.mp3" preload="auto"></audio>
 
+    <!-- PANTALLA DE ACCESO -->
     <div id="auth-screen" class="window-screen">
         <div class="minimal-auth-card animate-fade">
-            
+            <!-- INICIAR SESIÓN -->
             <div id="login-area" class="auth-view">
                 <h2>Iniciar Sesión</h2>
                 <div class="input-form-wrapper">
@@ -26,11 +28,12 @@
                 <p class="switch-text">¿No tienes cuenta? <span id="go-to-register">Regístrate</span></p>
             </div>
 
+            <!-- REGISTRARSE -->
             <div id="register-area" class="auth-view hidden">
                 <h2>Registrarse</h2>
                 <div class="input-form-wrapper">
-                    <input type="text" id="reg-name" placeholder="Tu nombre real" autocomplete="off">
-                    <input type="text" id="reg-nickname" placeholder="Crea tu Username / ID" autocomplete="off">
+                    <input type="text" id="reg-name" placeholder="Tu nombre real (3-50 caracteres)" autocomplete="off">
+                    <input type="text" id="reg-nickname" placeholder="Crea tu Username / ID (4-15 caracteres)" autocomplete="off">
                     <input type="password" id="reg-password" placeholder="Establecer contraseña">
                     
                     <div class="minimal-file-zone">
@@ -47,23 +50,28 @@
         </div>
     </div>
 
+    <!-- INTERFAZ DEL CHAT COMPLETA -->
     <div id="chat-screen" class="window-screen hidden">
         <div class="chat-main-wrapper">
             
-            <aside id="sidebar-panel" class="minimal-sidebar collapsed">
+            <!-- SIDEBAR IZQUIERDO PERMANENTE -->
+            <aside id="sidebar-panel" class="minimal-sidebar">
                 <div class="sidebar-top-content">
+                    
+                    <!-- Pestañas Superiores de Canal -->
                     <div class="sidebar-actions-header">
-                        <button type="button" id="btn-nav-global" class="nav-tab active">Global</button>
-                        <button type="button" id="btn-nav-users" class="nav-tab">Gente</button>
+                        <button type="button" id="btn-nav-global" class="nav-tab active"># Chat Global</button>
                         <button type="button" id="logout-btn" class="btn-icon-logout" title="Desconectarse">✕</button>
                     </div>
 
-                    <div id="users-list-area" class="hidden">
-                        <span class="panel-section-title">Gente Conectada</span>
+                    <!-- Lista Fija de Gente Conectada / Chats Privados -->
+                    <div id="users-list-area">
+                        <span class="panel-section-title">Directos / Miembros</span>
                         <div id="users-connected-list"></div>
                     </div>
 
-                    <div id="settings-area">
+                    <!-- Panel de Ajustes Inferior Expandible/Colapsable -->
+                    <div id="settings-area" class="settings-drawer collapsed">
                         <div class="profile-preview-card">
                             <label for="edit-avatar" class="avatar-edit-label" title="Cambiar Foto">
                                 <img id="current-user-avatar" src="" alt="Avatar" class="custom-avatar editable-avatar">
@@ -85,28 +93,35 @@
                             <button type="button" class="theme-circle dot-cyan" data-set-theme="cyan"></button>
                             <button type="button" class="theme-circle dot-amber" data-set-theme="amber"></button>
                             <button type="button" class="theme-circle dot-emerald" data-set-theme="emerald"></button>
+                            <button type="button" class="theme-circle dot-light" data-set-theme="light" title="Tema Claro"></button>
                         </div>
                     </div>
                 </div>
             </aside>
 
+            <!-- ÁREA DE CONVERSACIÓN -->
             <section class="chat-viewport">
                 <header class="chat-viewport-header">
                     <div class="header-left">
-                        <button type="button" id="toggle-sidebar-btn" class="btn-toggle" title="Ajustes">
+                        <span id="header-channel-title" class="chat-title">SayChat // Global</span>
+                    </div>
+                    <!-- TUERCA DE AJUSTES EN EL EXTREMO DERECHO -->
+                    <div class="header-right">
+                        <button type="button" id="toggle-settings-btn" class="btn-toggle-gear" title="Ajustes de Perfil">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         </button>
-                        <span id="header-channel-title" class="chat-title">SayChat // Global</span>
                     </div>
                 </header>
                 
                 <main id="chat-box">
-                    </main>
+                    <!-- Mensajes inyectados -->
+                </main>
                 
+                <!-- STICKERS POPUP -->
                 <div id="stickers-panel" class="stickers-popup hidden">
                     <div class="stickers-header">
                         <span>Mis Stickers</span>
-                        <label for="upload-sticker-input" class="btn-upload-stk" title="Subir Sticker">＋ Subir</label>
+                        <label for="upload-sticker-input" class="btn-upload-stk">＋ Subir</label>
                         <input type="file" id="upload-sticker-input" accept="image/*" class="hidden">
                     </div>
                     <div id="stickers-grid" class="stickers-grid-container"></div>
@@ -122,7 +137,8 @@
         </div>
     </div>
 
-    <div id="toast-notification" class="toast-popup hidden">Perfil actualizado</div>
+    <!-- TOAST IN-APP -->
+    <div id="toast-notification" class="toast-popup hidden">Cambios guardados</div>
 
     <script type="module" src="app.js"></script>
 </body>
