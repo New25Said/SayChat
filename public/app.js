@@ -20,12 +20,13 @@ const db = getDatabase(app);
 const dbRef = ref(db);
 
 let currentUser = null;
-let currentChatTarget = "global"; // "global" o el key del usuario privado
-let unreadCount = 0;
+let currentChatTarget = "global"; 
+let unreadCountGlobal = 0;
+let privateUnreadCounts = {}; // Estructura para registrar los conteos de mensajes privados en segundo plano
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
-let loginTimeMark = Date.now(); // Marca temporal local para ignorar notificaciones antiguas
+let loginTimeMark = Date.now(); 
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -34,7 +35,7 @@ const imageToConvert64 = (file, callback) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES EN PESTAÑA
+// NOTIFICACIONES GENERALES
 // ==========================================================================
 const NotificationSystem = {
     trigger() {
@@ -44,13 +45,13 @@ const NotificationSystem = {
             sound.play().catch(() => {});
         }
         if (!document.hasFocus()) {
-            unreadCount++;
-            document.title = `(${unreadCount}) ${baseTitle}`;
+            unreadCountGlobal++;
+            document.title = `(${unreadCountGlobal}) ${baseTitle}`;
             this.updateFaviconBadge();
         }
     },
     reset() {
-        unreadCount = 0;
+        unreadCountGlobal = 0;
         document.title = baseTitle;
         this.restoreFavicon();
     },
@@ -72,7 +73,7 @@ const NotificationSystem = {
         ctx.font = 'bold 18px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(unreadCount > 9 ? '9+' : unreadCount, 16, 16);
+        ctx.fillText(unreadCountGlobal > 9 ? '9+' : unreadCountGlobal, 16, 16);
         
         let link = document.querySelector("link[rel*='icon']");
         if (!link) {
@@ -99,7 +100,7 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// SUBSISTEMA DE PRESENCIA AVANZADO (ONLINE, IDLE, OFFLINE)
+// SUBSISTEMA DE PRESENCIA ACTIVA AVANZADA (SIN PARPADEOS - DIFFING REAL)
 // ==========================================================================
 const PresenceSystem = {
     updateState(status) {
@@ -108,19 +109,10 @@ const PresenceSystem = {
         set(ref(db, `presence/${userKey}`), { status: status, lastSeen: Date.now() });
     },
     init() {
-        // Verde al estar activo en la pestaña
         this.updateState("online");
-        
-        // Detección en vivo de foco y pestañas secundarias
         document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible") {
-                this.updateState("online"); // Verde
-            } else {
-                this.updateState("idle"); // Naranja
-            }
+            this.updateState(document.visibilityState === "visible" ? "online" : "idle");
         });
-
-        // Desconectado por desvinculación o cierre total del navegador
         const userKey = currentUser.nickname.replace('@', '');
         window.addEventListener('beforeunload', () => {
             set(ref(db, `presence/${userKey}`), { status: "offline", lastSeen: Date.now() });
@@ -130,39 +122,70 @@ const PresenceSystem = {
         onValue(ref(db, 'presence'), async (snapshot) => {
             const listContainer = document.getElementById('users-connected-list');
             if (!listContainer) return;
-            listContainer.innerHTML = "";
-            const presenceData = snapshot.val() || {};
             
+            const presenceData = snapshot.val() || {};
             const usersSnap = await get(child(dbRef, 'users'));
+            
             if (usersSnap.exists()) {
                 const allUsers = usersSnap.val();
+                
                 Object.keys(allUsers).forEach(key => {
                     const user = allUsers[key];
-                    if (currentUser && user.nickname === currentUser.nickname) return; // Omitirse a sí mismo
-                    
-                    const userState = presenceData[key] ? presenceData[key].status : "offline";
-                    
-                    const row = document.createElement('div');
-                    row.classList.add('user-status-row');
-                    if (currentChatTarget === key) row.classList.add('active-private');
-                    
-                    row.innerHTML = `
-                        <span class="status-indicator-dot ${userState}"></span>
-                        <span style="font-weight: 500;">${user.name}</span>
-                        <span style="font-size:10px; color:var(--text-muted); margin-left:4px;">${user.nickname}</span>
-                    `;
-                    
-                    // Al darle click abre el chat privado exclusivo
-                    row.addEventListener('click', () => {
-                        currentChatTarget = key;
-                        document.getElementById('btn-nav-global').classList.remove('active');
-                        document.querySelectorAll('.user-status-row').forEach(r => r.classList.remove('active-private'));
-                        row.classList.add('active-private');
-                        document.getElementById('header-channel-title').textContent = `Chat Privado con ${user.name}`;
-                        reloadMessagesUI();
-                    });
+                    if (currentUser && user.nickname === currentUser.nickname) return;
 
-                    listContainer.appendChild(row);
+                    const userState = presenceData[key] ? presenceData[key].status : "offline";
+                    let existingRow = document.getElementById(`user-row-${key}`);
+
+                    // SISTEMA DE DIFFING COMPOSICIÓN FLUIDA: Si no existe lo crea, si ya existe solo muta la bolita
+                    if (!existingRow) {
+                        existingRow = document.createElement('div');
+                        existingRow.id = `user-row-${key}`;
+                        existingRow.classList.add('contact-list-row');
+                        
+                        existingRow.innerHTML = `
+                            <div class="contact-avatar-wrapper">
+                                <img src="${user.avatar}" class="custom-avatar" alt="Avatar">
+                                <span class="status-indicator-dot ${userState}"></span>
+                            </div>
+                            <div class="contact-info-block">
+                                <div class="contact-row-top">
+                                    <h4>${user.name}</h4>
+                                </div>
+                                <p class="contact-sub">${user.nickname}</p>
+                            </div>
+                            <span class="private-unread-badge hidden" id="unread-badge-${key}">0</span>
+                        `;
+
+                        existingRow.addEventListener('click', () => {
+                            currentChatTarget = key;
+                            document.getElementById('btn-nav-global').classList.remove('active');
+                            document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
+                            existingRow.classList.add('active');
+                            document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
+                            
+                            // Limpia la bolita roja privada al entrar al chat
+                            privateUnreadCounts[key] = 0;
+                            const badge = document.getElementById(`unread-badge-${key}`);
+                            if (badge) { badge.classList.add('hidden'); }
+                            
+                            reloadMessagesUI();
+                        });
+
+                        listContainer.appendChild(existingRow);
+                    } else {
+                        // Mutación silenciosa e instantánea de la bolita de estado sin reconstruir la fila
+                        const dot = existingRow.querySelector('.status-indicator-dot');
+                        if (dot) {
+                            dot.className = `status-indicator-dot ${userState}`;
+                        }
+                    }
+
+                    // Actualizar burbuja roja privada si hay registros pendientes
+                    const badge = document.getElementById(`unread-badge-${key}`);
+                    if (badge && privateUnreadCounts[key] > 0) {
+                        badge.textContent = privateUnreadCounts[key];
+                        badge.classList.remove('hidden');
+                    }
                 });
             }
         });
@@ -170,7 +193,7 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// CONTROLADORES DE RENDERIZADO
+// CONTROLADORES DE RENDERIZADO DE MENSAJES
 // ==========================================================================
 let allMessagesCache = [];
 
@@ -180,7 +203,6 @@ const reloadMessagesUI = () => {
     
     allMessagesCache.forEach(msgData => {
         let shouldRender = false;
-        
         if (currentChatTarget === "global" && msgData.channel === "global") {
             shouldRender = true;
         } else if (currentChatTarget !== "global" && msgData.channel === "private") {
@@ -205,7 +227,6 @@ const reloadMessagesUI = () => {
             }
 
             msgRow.innerHTML = `
-                <img src="${msgData.authorAvatar || ''}" class="msg-img custom-avatar" alt="Avatar">
                 <div class="msg-bubble">
                     <div class="msg-meta">
                         <span class="meta-name">${msgData.authorName}</span>
@@ -222,7 +243,7 @@ const reloadMessagesUI = () => {
 };
 
 // ==========================================================================
-// LISTENERS Y ACCIONES MOCK
+// FILTROS Y EVENTOS
 // ==========================================================================
 
 document.getElementById('go-to-register').addEventListener('click', () => {
@@ -234,14 +255,10 @@ document.getElementById('go-to-login').addEventListener('click', () => {
     document.getElementById('login-area').classList.remove('hidden');
 });
 
-document.getElementById('toggle-settings-btn').addEventListener('click', () => {
-    document.getElementById('settings-area').classList.toggle('collapsed');
-});
-
 document.getElementById('btn-nav-global').addEventListener('click', () => {
     currentChatTarget = "global";
     document.getElementById('btn-nav-global').classList.add('active');
-    document.querySelectorAll('.user-status-row').forEach(r => r.classList.remove('active-private'));
+    document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
     document.getElementById('header-channel-title').textContent = "SayChat // Global";
     reloadMessagesUI();
 });
@@ -293,25 +310,16 @@ document.getElementById('btn-login-submit').addEventListener('click', async () =
     } catch (err) { alert("Error."); }
 });
 
-// MENSAJERÍA COMPUESTA CON FILTRADO DE LLAVES PRIVADAS
 const executeMessageSend = () => {
     const input = document.getElementById('message-input');
     const msg = input.value.trim();
     if (msg && currentUser) {
         const myKey = currentUser.nickname.replace('@', '');
-        const payload = {
-            sender: myKey,
-            message: msg,
-            type: 'text',
-            timestamp: Date.now()
-        };
+        const payload = { sender: myKey, message: msg, type: 'text', timestamp: Date.now() };
 
-        if (currentChatTarget === "global") {
-            payload.channel = "global";
-        } else {
-            payload.channel = "private";
-            payload.receiver = currentChatTarget;
-        }
+        if (currentChatTarget === "global") payload.channel = "global";
+        else { payload.channel = "private"; payload.receiver = currentChatTarget; }
+        
         push(ref(db, 'messages'), payload);
         input.value = '';
     }
@@ -320,7 +328,7 @@ const executeMessageSend = () => {
 document.getElementById('btn-send-message').addEventListener('click', executeMessageSend);
 document.getElementById('message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeMessageSend(); });
 
-// EDITAR CAMPOS EN VIVO
+// EDITAR NOMBRE E IMAGEN EN LÍNEA
 document.getElementById('edit-avatar').addEventListener('change', (e) => {
     if (e.target.files[0] && currentUser) {
         imageToConvert64(e.target.files[0], async (base64) => {
@@ -329,7 +337,7 @@ document.getElementById('edit-avatar').addEventListener('change', (e) => {
             currentUser.avatar = base64;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
             document.getElementById('current-user-avatar').src = base64;
-            NotificationSystem.showLocalToast("Avatar actualizado");
+            NotificationSystem.showLocalToast("Avatar guardado");
         });
     }
 });
@@ -351,7 +359,7 @@ editNameInput.addEventListener('keydown', async (e) => {
             currentUser.name = val;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
             userNameElement.textContent = val;
-            NotificationSystem.showLocalToast("Perfil guardado");
+            NotificationSystem.showLocalToast("Nombre cambiado");
         }
         editNameInput.classList.add('hidden');
         userNameElement.classList.remove('hidden');
@@ -364,9 +372,7 @@ document.getElementById('btn-toggle-stickers').addEventListener('click', () => {
 });
 document.getElementById('upload-sticker-input').addEventListener('change', (e) => {
     if (e.target.files[0]) {
-        imageToConvert64(e.target.files[0], (base64) => {
-            push(ref(db, 'stickers'), { base64 });
-        });
+        imageToConvert64(e.target.files[0], (base64) => { push(ref(db, 'stickers'), { base64 }); });
     }
 });
 onChildAdded(ref(db, 'stickers'), (snapshot) => {
@@ -387,7 +393,7 @@ onChildAdded(ref(db, 'stickers'), (snapshot) => {
     grid.appendChild(img);
 });
 
-// ESCUCHAR MENSAJES Y EVITAR DUPLICADO AUDIBLE AL ENTRAR
+// ESCUCHAR TRANSMISIÓN DE MENSAJES CON FILTRO DE BOLITA ROJA PRIVADA
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
     const authorSnap = await get(child(dbRef, `users/${data.sender}`));
@@ -403,12 +409,25 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
 
     allMessagesCache.push(cachePayload);
 
-    // Evitar que el timbre suene con mensajes antiguos del historial
     const isNewMessage = data.timestamp > loginTimeMark;
     const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
 
-    if (isNewMessage && !isMe) {
-        NotificationSystem.trigger();
+    if (isNewMessage) {
+        if (!isMe) {
+            NotificationSystem.trigger();
+        }
+
+        // CONTROL BURBUJA ROJA PRIVADA: Si recibes un mensaje privado y NO estás dentro de esa conversación activa
+        if (data.channel === "private" && data.sender !== currentChatTarget) {
+            const senderKey = data.sender;
+            privateUnreadCounts[senderKey] = (privateUnreadCounts[senderKey] || 0) + 1;
+            
+            const badge = document.getElementById(`unread-badge-${senderKey}`);
+            if (badge) {
+                badge.textContent = privateUnreadCounts[senderKey];
+                badge.classList.remove('hidden');
+            }
+        }
     }
 
     reloadMessagesUI();
@@ -429,12 +448,11 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     location.reload();
 });
 
-// AUTO-LOGIN
+// EVALUAR SESIÓN
 const savedSession = localStorage.getItem('chat_session_v5');
 if (savedSession) {
     currentUser = JSON.parse(savedSession);
     
-    // Forzamos interfaz
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('current-user-avatar').src = currentUser.avatar;
