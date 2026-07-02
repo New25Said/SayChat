@@ -61,7 +61,11 @@ const UI = {
     renderMessage(data, authorData, isMe) {
         const msgRow = document.createElement('div');
         msgRow.classList.add('msg-row');
-        if (isMe) msgRow.classList.add('msg-row-me');
+        
+        // Comprobación de seguridad visual para persistir entre computadoras
+        if (isMe) {
+            msgRow.classList.add('msg-row-me');
+        }
 
         const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -142,7 +146,10 @@ const ChatService = {
             let authorData = { name: "Usuario", nickname: "@unknown", avatar: "" };
             
             if (authorSnap.exists()) authorData = authorSnap.val();
-            callback(data, authorData);
+            
+            // Verificación dinámica basada en el apodo (Persiste entre equipos y cierres de sesión)
+            const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
+            callback(data, authorData, isMe);
         });
     }
 };
@@ -183,6 +190,8 @@ document.getElementById('btn-register-submit').addEventListener('click', async (
         currentUser = await AuthService.register(name, nickname, password, tempRegisterAvatar);
         localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
         UI.showChat(currentUser);
+        // Recargar la ventana para refrescar y reevaluar la propiedad 'isMe' de los mensajes antiguos
+        location.reload();
     } catch (err) {
         alert(err.message === "ID_EXISTENTE" ? "El ID de usuario ya está ocupado." : "Error de red.");
     }
@@ -199,6 +208,8 @@ document.getElementById('btn-login-submit').addEventListener('click', async () =
         currentUser = await AuthService.login(nickname, password);
         localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
         UI.showChat(currentUser);
+        // Recargar la ventana para refrescar y reevaluar la propiedad 'isMe' de los mensajes antiguos
+        location.reload();
     } catch (err) {
         alert(err.message === "USER_NOT_FOUND" ? "El ID no existe." : "Contraseña incorrecta.");
     }
@@ -236,8 +247,7 @@ document.getElementById('btn-send-message').addEventListener('click', triggerSen
 UI.inputs.message.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerSend(); });
 
 // Inicialización de Escucha en Tiempo Real
-ChatService.listenMessages((data, authorData) => {
-    const isMe = currentUser && authorData.nickname === currentUser.nickname;
+ChatService.listenMessages((data, authorData, isMe) => {
     UI.renderMessage(data, authorData, isMe);
 });
 
