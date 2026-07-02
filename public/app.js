@@ -20,12 +20,13 @@ const db = getDatabase(app);
 const dbRef = ref(db);
 
 let currentUser = null;
+let currentChatTarget = "global"; // "global" o el key del usuario privado
 let unreadCount = 0;
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
+let loginTimeMark = Date.now(); // Marca temporal local para ignorar notificaciones antiguas
 
-// Convertidor Helper Global de Imagenes
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
     reader.onloadend = () => callback(reader.result);
@@ -33,7 +34,7 @@ const imageToConvert64 = (file, callback) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES Y CANVAS PESTAÑA
+// NOTIFICACIONES EN PESTAÑA
 // ==========================================================================
 const NotificationSystem = {
     trigger() {
@@ -98,86 +99,32 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// CONTROLADORES DE INTERFAZ (UI)
-// ==========================================================================
-const UI = {
-    screens: {
-        auth: document.getElementById('auth-screen'),
-        chat: document.getElementById('chat-screen'),
-        loginArea: document.getElementById('login-area'),
-        registerArea: document.getElementById('register-area'),
-        sidebar: document.getElementById('sidebar-panel')
-    },
-    switchAuthMode(mode) {
-        if (mode === 'register') {
-            this.screens.loginArea.classList.add('hidden');
-            this.screens.registerArea.classList.remove('hidden');
-        } else {
-            this.screens.registerArea.classList.add('hidden');
-            this.screens.loginArea.classList.remove('hidden');
-        }
-    },
-    showChat(user) {
-        this.screens.auth.classList.add('hidden');
-        this.screens.chat.classList.remove('hidden');
-        
-        document.getElementById('current-user-avatar').src = user.avatar;
-        document.getElementById('current-user-name').textContent = user.name;
-        document.getElementById('current-user-nickname').textContent = user.nickname;
-    },
-    renderMessage(data, authorData, isMe) {
-        const msgRow = document.createElement('div');
-        msgRow.classList.add('msg-row');
-        if (isMe) msgRow.classList.add('msg-row-me');
-
-        const time = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        let contentHTML = `<p class="msg-body">${data.message}</p>`;
-        if (data.type === 'sticker') {
-            contentHTML = `<img src="${data.stickerUrl}" class="msg-sticker" alt="Sticker">`;
-        }
-
-        msgRow.innerHTML = `
-            <img src="${authorData.avatar || ''}" class="msg-img custom-avatar" alt="Avatar">
-            <div class="msg-bubble">
-                <div class="msg-meta">
-                    <span class="meta-name">${authorData.name}</span>
-                    <span class="meta-nick">${authorData.nickname}</span>
-                </div>
-                ${contentHTML}
-                <span class="msg-time">${time}</span>
-            </div>
-        `;
-
-        const box = document.getElementById('chat-box');
-        box.appendChild(msgRow);
-        box.scrollTop = box.scrollHeight;
-    },
-    renderUserRow(user, isOnline) {
-        const list = document.getElementById('users-connected-list');
-        const row = document.createElement('div');
-        row.classList.add('user-status-row');
-        row.innerHTML = `
-            <span class="status-indicator-dot ${isOnline ? 'online' : ''}"></span>
-            <span style="font-weight: 500;">${user.name}</span>
-            <span style="font-size:10px; color:var(--text-muted); margin-left:4px;">${user.nickname}</span>
-        `;
-        list.appendChild(row);
-    }
-};
-
-// ==========================================================================
-// PRESENCIA DE USUARIOS (ESTILO DISCORD)
+// SUBSISTEMA DE PRESENCIA AVANZADO (ONLINE, IDLE, OFFLINE)
 // ==========================================================================
 const PresenceSystem = {
-    setOnline(userKey) {
-        if (!userKey) return;
-        set(ref(db, `presence/${userKey}`), { online: true, lastSeen: Date.now() });
-        window.addEventListener('beforeunload', () => set(ref(db, `presence/${userKey}`), { online: false, lastSeen: Date.now() }));
+    updateState(status) {
+        if (!currentUser) return;
+        const userKey = currentUser.nickname.replace('@', '');
+        set(ref(db, `presence/${userKey}`), { status: status, lastSeen: Date.now() });
     },
-    setOffline(userKey) {
-        if (!userKey) return;
-        set(ref(db, `presence/${userKey}`), { online: false, lastSeen: Date.now() });
+    init() {
+        // Verde al estar activo en la pestaña
+        this.updateState("online");
+        
+        // Detección en vivo de foco y pestañas secundarias
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                this.updateState("online"); // Verde
+            } else {
+                this.updateState("idle"); // Naranja
+            }
+        });
+
+        // Desconectado por desvinculación o cierre total del navegador
+        const userKey = currentUser.nickname.replace('@', '');
+        window.addEventListener('beforeunload', () => {
+            set(ref(db, `presence/${userKey}`), { status: "offline", lastSeen: Date.now() });
+        });
     },
     listenPresence() {
         onValue(ref(db, 'presence'), async (snapshot) => {
@@ -191,8 +138,31 @@ const PresenceSystem = {
                 const allUsers = usersSnap.val();
                 Object.keys(allUsers).forEach(key => {
                     const user = allUsers[key];
-                    const isOnline = presenceData[key] && presenceData[key].online === true;
-                    UI.renderUserRow(user, isOnline);
+                    if (currentUser && user.nickname === currentUser.nickname) return; // Omitirse a sí mismo
+                    
+                    const userState = presenceData[key] ? presenceData[key].status : "offline";
+                    
+                    const row = document.createElement('div');
+                    row.classList.add('user-status-row');
+                    if (currentChatTarget === key) row.classList.add('active-private');
+                    
+                    row.innerHTML = `
+                        <span class="status-indicator-dot ${userState}"></span>
+                        <span style="font-weight: 500;">${user.name}</span>
+                        <span style="font-size:10px; color:var(--text-muted); margin-left:4px;">${user.nickname}</span>
+                    `;
+                    
+                    // Al darle click abre el chat privado exclusivo
+                    row.addEventListener('click', () => {
+                        currentChatTarget = key;
+                        document.getElementById('btn-nav-global').classList.remove('active');
+                        document.querySelectorAll('.user-status-row').forEach(r => r.classList.remove('active-private'));
+                        row.classList.add('active-private');
+                        document.getElementById('header-channel-title').textContent = `Chat Privado con ${user.name}`;
+                        reloadMessagesUI();
+                    });
+
+                    listContainer.appendChild(row);
                 });
             }
         });
@@ -200,96 +170,157 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// EVENTOS Y ENLACES DIRECTOS DE ACCIÓN (MANUAL CLICKS)
+// CONTROLADORES DE RENDERIZADO
+// ==========================================================================
+let allMessagesCache = [];
+
+const reloadMessagesUI = () => {
+    const box = document.getElementById('chat-box');
+    box.innerHTML = "";
+    
+    allMessagesCache.forEach(msgData => {
+        let shouldRender = false;
+        
+        if (currentChatTarget === "global" && msgData.channel === "global") {
+            shouldRender = true;
+        } else if (currentChatTarget !== "global" && msgData.channel === "private") {
+            const myKey = currentUser.nickname.replace('@', '');
+            if ((msgData.sender === myKey && msgData.receiver === currentChatTarget) || 
+                (msgData.sender === currentChatTarget && msgData.receiver === myKey)) {
+                shouldRender = true;
+            }
+        }
+
+        if (shouldRender) {
+            const msgRow = document.createElement('div');
+            msgRow.classList.add('msg-row');
+            if (currentUser && msgData.authorNickname.toLowerCase() === currentUser.nickname.toLowerCase()) {
+                msgRow.classList.add('msg-row-me');
+            }
+
+            const time = new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let contentHTML = `<p class="msg-body">${msgData.message}</p>`;
+            if (msgData.type === 'sticker') {
+                contentHTML = `<img src="${msgData.stickerUrl}" class="msg-sticker" alt="Sticker">`;
+            }
+
+            msgRow.innerHTML = `
+                <img src="${msgData.authorAvatar || ''}" class="msg-img custom-avatar" alt="Avatar">
+                <div class="msg-bubble">
+                    <div class="msg-meta">
+                        <span class="meta-name">${msgData.authorName}</span>
+                        <span class="meta-nick">${msgData.authorNickname}</span>
+                    </div>
+                    ${contentHTML}
+                    <span class="msg-time">${time}</span>
+                </div>
+            `;
+            box.appendChild(msgRow);
+        }
+    });
+    box.scrollTop = box.scrollHeight;
+};
+
+// ==========================================================================
+// LISTENERS Y ACCIONES MOCK
 // ==========================================================================
 
-// Cambios de pantallas de login/registro
-document.getElementById('go-to-register').addEventListener('click', () => UI.switchAuthMode('register'));
-document.getElementById('go-to-login').addEventListener('click', () => UI.switchAuthMode('login'));
-document.getElementById('toggle-sidebar-btn').addEventListener('click', () => UI.screens.sidebar.classList.toggle('collapsed'));
+document.getElementById('go-to-register').addEventListener('click', () => {
+    document.getElementById('login-area').classList.add('hidden');
+    document.getElementById('register-area').classList.remove('hidden');
+});
+document.getElementById('go-to-login').addEventListener('click', () => {
+    document.getElementById('register-area').classList.add('hidden');
+    document.getElementById('login-area').classList.remove('hidden');
+});
 
-// Subpestañas Barra lateral
+document.getElementById('toggle-settings-btn').addEventListener('click', () => {
+    document.getElementById('settings-area').classList.toggle('collapsed');
+});
+
 document.getElementById('btn-nav-global').addEventListener('click', () => {
+    currentChatTarget = "global";
     document.getElementById('btn-nav-global').classList.add('active');
-    document.getElementById('btn-nav-users').classList.remove('active');
-    document.getElementById('settings-area').classList.remove('hidden');
-    document.getElementById('users-list-area').classList.add('hidden');
+    document.querySelectorAll('.user-status-row').forEach(r => r.classList.remove('active-private'));
+    document.getElementById('header-channel-title').textContent = "SayChat // Global";
+    reloadMessagesUI();
 });
 
-document.getElementById('btn-nav-users').addEventListener('click', () => {
-    document.getElementById('btn-nav-users').classList.add('active');
-    document.getElementById('btn-nav-global').classList.remove('active');
-    document.getElementById('settings-area').classList.add('hidden');
-    document.getElementById('users-list-area').classList.remove('hidden');
-});
-
-// Carga de imágenes en registro
 document.getElementById('reg-avatar').addEventListener('change', (e) => {
     if (e.target.files[0]) {
         imageToConvert64(e.target.files[0], (base64) => {
             tempRegisterAvatar = base64;
             const preview = document.getElementById('reg-preview');
-            preview.src = base64; 
-            preview.classList.remove('hidden');
+            preview.src = base64; preview.classList.remove('hidden');
             document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
         });
     }
 });
 
-// BOTÓN ACCIÓN: REGISTRARSE
 document.getElementById('btn-register-submit').addEventListener('click', async () => {
     const name = document.getElementById('reg-name').value.trim();
     const nickname = document.getElementById('reg-nickname').value.trim();
     const password = document.getElementById('reg-password').value;
 
-    if (!name || !nickname || !password || !tempRegisterAvatar) {
-        alert("Completa todos los datos y selecciona una foto.");
-        return;
-    }
-
-    // Validaciones de límites solicitadas
-    if (/[A-Z\s]/.test(nickname)) return alert("El Username/ID no puede contener mayúsculas ni espacios.");
-    if (nickname.length < 4 || nickname.length > 15) return alert("El Username/ID debe tener entre 4 y 15 caracteres.");
-    if (name.length < 3 || name.length > 50) return alert("Tu nombre debe tener entre 3 y 50 caracteres.");
+    if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Completa todos los datos.");
+    if (/[A-Z\s]/.test(nickname)) return alert("Username sin mayúsculas ni espacios.");
 
     try {
         const snapshot = await get(child(dbRef, `users/${nickname}`));
-        if (snapshot.exists()) return alert("Este Username/ID ya está ocupado.");
+        if (snapshot.exists()) return alert("Username ocupado.");
 
         const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
         await set(ref(db, `users/${nickname}`), userData);
-
         currentUser = userData;
         localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-        PresenceSystem.setOnline(nickname);
-        UI.showChat(currentUser);
         location.reload();
-    } catch (err) { alert("Error de registro."); }
+    } catch (err) { alert("Error."); }
 });
 
-// BOTÓN ACCIÓN: INICIAR SESIÓN
 document.getElementById('btn-login-submit').addEventListener('click', async () => {
     const nickname = document.getElementById('login-nickname').value.trim().toLowerCase();
     const password = document.getElementById('login-password').value;
 
-    if (!nickname || !password) return alert("Rellena las credenciales.");
-
     try {
         const snapshot = await get(child(dbRef, `users/${nickname}`));
-        if (!snapshot.exists()) return alert("El usuario no existe.");
-
+        if (!snapshot.exists()) return alert("No existe.");
         const userData = snapshot.val();
-        if (userData.password !== password) return alert("Contraseña incorrecta.");
+        if (userData.password !== password) return alert("Incorrecto.");
 
         currentUser = userData;
         localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-        PresenceSystem.setOnline(nickname);
-        UI.showChat(currentUser);
         location.reload();
-    } catch (err) { alert("Error al entrar."); }
+    } catch (err) { alert("Error."); }
 });
 
-// ACCIÓN: CAMBIAR FOTO EN VIVO
+// MENSAJERÍA COMPUESTA CON FILTRADO DE LLAVES PRIVADAS
+const executeMessageSend = () => {
+    const input = document.getElementById('message-input');
+    const msg = input.value.trim();
+    if (msg && currentUser) {
+        const myKey = currentUser.nickname.replace('@', '');
+        const payload = {
+            sender: myKey,
+            message: msg,
+            type: 'text',
+            timestamp: Date.now()
+        };
+
+        if (currentChatTarget === "global") {
+            payload.channel = "global";
+        } else {
+            payload.channel = "private";
+            payload.receiver = currentChatTarget;
+        }
+        push(ref(db, 'messages'), payload);
+        input.value = '';
+    }
+};
+
+document.getElementById('btn-send-message').addEventListener('click', executeMessageSend);
+document.getElementById('message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeMessageSend(); });
+
+// EDITAR CAMPOS EN VIVO
 document.getElementById('edit-avatar').addEventListener('change', (e) => {
     if (e.target.files[0] && currentUser) {
         imageToConvert64(e.target.files[0], async (base64) => {
@@ -303,17 +334,14 @@ document.getElementById('edit-avatar').addEventListener('change', (e) => {
     }
 });
 
-// ACCIÓN IN-LINE: EDITAR NOMBRE CON UN CLICK Y ENTER
 const userNameElement = document.getElementById('current-user-name');
 const editNameInput = document.getElementById('edit-name-input');
-
 userNameElement.addEventListener('click', () => {
     editNameInput.value = userNameElement.textContent;
     userNameElement.classList.add('hidden');
     editNameInput.classList.remove('hidden');
     editNameInput.focus();
 });
-
 editNameInput.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
         const val = editNameInput.value.trim();
@@ -323,82 +351,70 @@ editNameInput.addEventListener('keydown', async (e) => {
             currentUser.name = val;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
             userNameElement.textContent = val;
-            NotificationSystem.showLocalToast("Nombre cambiado");
-        } else { alert("Debe tener entre 3 y 50 letras."); }
+            NotificationSystem.showLocalToast("Perfil guardado");
+        }
         editNameInput.classList.add('hidden');
         userNameElement.classList.remove('hidden');
     }
 });
 
-// ENVIAR MENSAJES Y STICKERS
-const executeMessageSend = () => {
-    const input = document.getElementById('message-input');
-    const msg = input.value.trim();
-    if (msg && currentUser) {
-        const userKey = currentUser.nickname.replace('@', '');
-        push(ref(db, 'messages'), { userKey, message: msg, type: 'text', timestamp: Date.now() });
-        input.value = '';
-    }
-};
-
-document.getElementById('btn-send-message').addEventListener('click', executeMessageSend);
-document.getElementById('message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeMessageSend(); });
-
+// STICKERS
 document.getElementById('btn-toggle-stickers').addEventListener('click', () => {
     document.getElementById('stickers-panel').classList.toggle('hidden');
 });
-
 document.getElementById('upload-sticker-input').addEventListener('change', (e) => {
     if (e.target.files[0]) {
         imageToConvert64(e.target.files[0], (base64) => {
             push(ref(db, 'stickers'), { base64 });
-            NotificationSystem.showLocalToast("Sticker añadido");
         });
     }
 });
-
 onChildAdded(ref(db, 'stickers'), (snapshot) => {
     const base64 = snapshot.val().base64;
     const grid = document.getElementById('stickers-grid');
     const img = document.createElement('img');
-    img.src = base64;
-    img.classList.add('grid-stk-img');
+    img.src = base64; img.classList.add('grid-stk-img');
     img.addEventListener('click', () => {
         if (currentUser) {
-            const userKey = currentUser.nickname.replace('@', '');
-            push(ref(db, 'messages'), { userKey, message: '[Sticker]', type: 'sticker', stickerUrl: base64, timestamp: Date.now() });
+            const myKey = currentUser.nickname.replace('@', '');
+            const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: base64, timestamp: Date.now() };
+            if (currentChatTarget === "global") payload.channel = "global";
+            else { payload.channel = "private"; payload.receiver = currentChatTarget; }
+            push(ref(db, 'messages'), payload);
             document.getElementById('stickers-panel').classList.add('hidden');
         }
     });
     grid.appendChild(img);
 });
 
-// ESCUCHAR MENSAJES DE FIREBASE EN TIEMPO REAL
-let appInitializing = true;
-setTimeout(() => { appInitializing = false; }, 2000);
-
+// ESCUCHAR MENSAJES Y EVITAR DUPLICADO AUDIBLE AL ENTRAR
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
-    const authorSnap = await get(child(dbRef, `users/${data.userKey}`));
+    const authorSnap = await get(child(dbRef, `users/${data.sender}`));
     let authorData = { name: "Usuario", nickname: "@unknown", avatar: "" };
-    
     if (authorSnap.exists()) authorData = authorSnap.val();
+
+    const cachePayload = {
+        ...data,
+        authorName: authorData.name,
+        authorNickname: authorData.nickname,
+        authorAvatar: authorData.avatar
+    };
+
+    allMessagesCache.push(cachePayload);
+
+    // Evitar que el timbre suene con mensajes antiguos del historial
+    const isNewMessage = data.timestamp > loginTimeMark;
     const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
-    
-    if (!appInitializing && !isMe) {
+
+    if (isNewMessage && !isMe) {
         NotificationSystem.trigger();
     }
-    UI.renderMessage(data, authorData, isMe);
+
+    reloadMessagesUI();
 });
 
-// LOGOUT
-document.getElementById('logout-btn').addEventListener('click', () => {
-    if (currentUser) PresenceSystem.setOffline(currentUser.nickname.replace('@', ''));
-    localStorage.removeItem('chat_session_v5');
-    location.reload();
-});
-
-// SELECCIÓN DE TEMAS
+// TEMAS
 document.querySelectorAll('[data-set-theme]').forEach(dot => {
     dot.addEventListener('click', (e) => {
         document.body.setAttribute('data-theme', e.target.getAttribute('data-set-theme'));
@@ -407,12 +423,24 @@ document.querySelectorAll('[data-set-theme]').forEach(dot => {
     });
 });
 
-// EVALUAR AUTO-LOGIN AL CARGAR
+document.getElementById('logout-btn').addEventListener('click', () => {
+    PresenceSystem.updateState("offline");
+    localStorage.removeItem('chat_session_v5');
+    location.reload();
+});
+
+// AUTO-LOGIN
 const savedSession = localStorage.getItem('chat_session_v5');
 if (savedSession) {
     currentUser = JSON.parse(savedSession);
-    const cleanKey = currentUser.nickname.replace('@', '');
-    PresenceSystem.setOnline(cleanKey);
+    
+    // Forzamos interfaz
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('chat-screen').classList.remove('hidden');
+    document.getElementById('current-user-avatar').src = currentUser.avatar;
+    document.getElementById('current-user-name').textContent = currentUser.name;
+    document.getElementById('current-user-nickname').textContent = currentUser.nickname;
+    
+    PresenceSystem.init();
     PresenceSystem.listenPresence();
-    UI.showChat(currentUser);
 }
