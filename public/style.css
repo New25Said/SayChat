@@ -1,29 +1,32 @@
 :root {
-    --bg-main: #0a0a0e;
-    --bg-box: #13131a;
-    --bg-input: #191924;
-    --border-color: #242433;
-    --text-primary: #f1f1f5;
-    --text-secondary: #6c6c85;
+    --bg-main: #07070a;
+    --bg-box: #0f0f15;
+    --bg-input: #151520;
+    --border-color: #1f1f2e;
+    --text-primary: #f5f5fa;
+    --text-secondary: #62627a;
     
     /* Configuración por defecto: Rose-Red Neón */
     --accent: #ff2a5f;
-    --accent-glow: rgba(255, 42, 95, 0.2);
-    --accent-dark: #80102a;
+    --accent-glow: rgba(255, 42, 95, 0.15);
+    --accent-dark: #660c22;
     --font-chat: 'Plus Jakarta Sans', system-ui, sans-serif;
-    --transition-fluid: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efecto elástico elástico */
+    
+    /* Animaciones fluidas solicitadas */
+    --ease-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --ease-elastic: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-body[data-theme="cyan"] { --accent: #00e5ff; --accent-glow: rgba(0, 229, 255, 0.2); }
-body[data-theme="amber"] { --accent: #ffaa00; --accent-glow: rgba(255, 170, 0, 0.2); }
-body[data-theme="emerald"] { --accent: #00ff77; --accent-glow: rgba(0, 255, 119, 0.2); }
+body[data-theme="cyan"] { --accent: #00e5ff; --accent-glow: rgba(0, 229, 255, 0.15); --accent-dark: #005c66; }
+body[data-theme="amber"] { --accent: #ffaa00; --accent-glow: rgba(255, 170, 0, 0.15); --accent-dark: #664400; }
+body[data-theme="emerald"] { --accent: #00ff77; --accent-glow: rgba(0, 255, 119, 0.15); --accent-dark: #006630; }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     font-family: var(--font-chat);
-    border-radius: 0px; /* Base cuadrada estricta antimoderna */
+    border-radius: 0px; /* Estética base retro de bordes cuadrados */
 }
 
 html, body {
@@ -32,74 +35,100 @@ html, body {
     background-color: var(--bg-main);
     color: var(--text-primary);
     overflow: hidden;
-    font-size: 12.5px; /* Compacto semipequeño */
+    font-size: 12.5px;
 }
 
 .hidden { display: none !important; }
 
-/* ANIMACIONES DE ENTRADA SUAVE */
+/* ANIMACIONES GENERALES DE LA INTERFAZ */
 .animate-fade {
-    animation: fadeIn cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+    animation: smoothScaleUp 0.45s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
 }
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px) scale(0.99); }
+@keyframes smoothScaleUp {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* COMPONENTES DE ENTORNO ANTIXMODERNO */
+/* COMPOSICIÓN Y ORDEN DEL APARTADO DE LOGIN RETRO */
 .window-screen {
     width: 100vw;
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: radial-gradient(circle at center, #151522 0%, #0a0a0e 100%);
+    background: radial-gradient(circle at center, #12121c 0%, #07070a 100%);
 }
 
-.compact-box {
+.retro-terminal-box {
     background: var(--bg-box);
-    border: 2px solid var(--border-color);
+    border: 1px solid var(--border-color);
     width: 100%;
-    max-width: 320px;
-    padding: 20px;
-    box-shadow: 5px 5px 0px #000;
+    max-width: 350px;
+    box-shadow: 6px 6px 0px #000;
+    transition: var(--ease-smooth);
+}
+.retro-terminal-box:hover {
+    box-shadow: 8px 8px 0px var(--accent-glow);
+    border-color: var(--accent);
 }
 
-.box-header {
-    background: var(--border-color);
-    padding: 3px 6px;
-    margin-bottom: 12px;
+.terminal-header {
+    background: #151522;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.box-title {
+.terminal-dots { display: flex; gap: 5px; }
+.terminal-dots span { width: 6px; height: 6px; background: #333; }
+.terminal-dots .dot-red { background: #ff5f56; }
+.terminal-dots .dot-yellow { background: #ffbd2e; }
+.terminal-dots .dot-green { background: #27c93f; }
+
+.terminal-title {
     font-size: 9px;
     font-weight: bold;
-    color: var(--accent);
+    color: var(--text-secondary);
     letter-spacing: 1px;
 }
 
-h2 { font-size: 16px; margin-bottom: 12px; font-weight: 700; }
+.terminal-body { padding: 25px 20px; }
+.section-title { font-size: 14px; margin-bottom: 20px; color: var(--accent); font-weight: 700; letter-spacing: 0.5px; }
+
+/* DISEÑO ORDENADO DE FORMULARIOS */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+.input-group label {
+    font-size: 9px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
 
 input[type="text"], input[type="password"] {
     width: 100%;
-    padding: 8px 10px;
+    padding: 10px 12px;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     color: white;
     outline: none;
-    margin-bottom: 10px;
-    transition: var(--transition-fluid);
+    transition: var(--ease-smooth);
 }
-
 input[type="text"]:focus, input[type="password"]:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 10px var(--accent-glow);
+    background: #181826;
 }
 
-/* EFECTO HOVER MODERNO EN BOTONES: SE VUELVEN OVALADOS/CIRCULARES ELÁSTICAMENTE */
-.btn-retro {
+/* BOTONES RETRO CON MOVIMIENTOS EASE-OUT FLUIDOS */
+.btn-retro-fluid {
     width: 100%;
-    padding: 9px;
+    padding: 11px;
     background: var(--accent);
     color: #000;
     border: none;
@@ -107,43 +136,56 @@ input[type="text"]:focus, input[type="password"]:focus {
     font-size: 11px;
     text-transform: uppercase;
     cursor: pointer;
-    box-shadow: 2px 2px 0px #000;
-    transition: var(--transition-fluid);
+    box-shadow: 3px 3px 0px #000;
+    transition: var(--ease-elastic);
+}
+.btn-retro-fluid:hover {
+    border-radius: 20px !important; /* El borde cuadrado muta suavemente a redondeado */
+    transform: translateY(-2px);
+    box-shadow: 5px 5px 0px #000;
 }
 
-.btn-retro:hover {
-    border-radius: 20px !important; /* Mutación a bordes redondeados modernos */
-    transform: translateY(-1px);
-    box-shadow: 4px 4px 0px #000;
-}
+.switch-text { margin-top: 15px; font-size: 10px; color: var(--text-secondary); text-align: center; }
+.switch-text span { color: var(--accent); cursor: pointer; font-weight: bold; text-decoration: underline; }
 
-/* AVATARES CON HOVER DE TRANSICIÓN GEOMÉTRICA */
+/* ZONA DE CARGA DE ARCHIVOS ORGANIZADA */
+.file-zone-retro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    margin-bottom: 20px;
+}
+.file-label-btn {
+    background: #252538;
+    padding: 6px 10px;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: var(--ease-smooth);
+}
+.file-label-btn:hover { background: var(--accent); color: #000; }
+.file-zone-retro input[type="file"], .file-zone-mini input[type="file"] { display: none; }
+
+/* CONTROL DE AVATARES RETRO-MODERNOS */
 .custom-avatar {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     object-fit: cover;
     border: 1px solid var(--accent);
     background: var(--bg-input);
-    transition: var(--transition-fluid); /* Animación fluida */
+    transition: var(--ease-elastic);
 }
-
-/* Hover dinámico: Lo cuadrado pasa a ser completamente circular */
 .custom-avatar:hover {
-    border-radius: 50% !important; 
-    transform: rotate(7deg) scale(1.05);
+    border-radius: 50% !important; /* Pasa de cuadrado a circular fluidamente */
+    transform: scale(1.1) rotate(5deg);
 }
 
-.file-zone {
-    border: 1px dashed var(--border-color);
-    padding: 8px;
-    margin-bottom: 10px;
-    text-align: center;
-    background: var(--bg-input);
-}
-
-.file-zone label { font-size: 10px; color: var(--text-secondary); cursor: pointer; }
-
-/* CONTENEDOR CHAT GENERAL */
+/* ==========================================================================
+   ESTRUCTURA COMPOSICIÓN CHAT GLOBAL
+   ========================================================================== */
 .chat-app-container {
     display: flex;
     width: 100vw;
@@ -152,62 +194,65 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .compact-sidebar {
-    width: 200px;
+    width: 220px;
     background: var(--bg-box);
-    border-right: 2px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
+.sidebar-section-group { padding: 15px; }
+.box-header-clean { margin-bottom: 12px; border-left: 2px solid var(--accent); padding-left: 6px; }
+.box-title-mini { font-size: 10px; font-weight: bold; color: var(--text-secondary); letter-spacing: 0.5px; }
 
-.profile-card {
-    padding: 10px;
+.profile-card-premium {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: #151520;
-    border-bottom: 1px solid var(--border-color);
+    gap: 10px;
+    padding: 10px;
+    background: #13131f;
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
 }
+.profile-details h3 { font-size: 12px; color: #fff; font-weight: 700; }
+.profile-details span { font-size: 10px; color: var(--text-secondary); }
 
-.profile-details h3 { font-size: 12px; color: #fff; }
-.profile-details span { font-size: 9px; color: var(--text-secondary); }
-
-.edit-profile-box { padding: 10px; }
-.section-label { display: block; font-size: 8.5px; font-weight: bold; color: var(--accent); margin-bottom: 6px; }
+/* CONTROLES INTERNOS DE ACTUALIZACIÓN */
+.edit-profile-box { display: flex; flex-direction: column; gap: 8px; }
+.section-label-mini { font-size: 9px; font-weight: bold; color: var(--accent); letter-spacing: 0.5px; }
 
 .file-zone-mini label {
     display: block;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
-    padding: 4px;
+    padding: 6px;
     text-align: center;
     font-size: 9px;
     cursor: pointer;
-    margin-bottom: 6px;
+    transition: var(--ease-smooth);
 }
+.file-zone-mini label:hover { border-color: var(--accent); color: var(--accent); }
 
-.btn-retro-small {
+.btn-action-smooth {
     width: 100%;
-    padding: 5px;
+    padding: 7px;
     background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
     font-size: 10px;
     cursor: pointer;
-    transition: var(--transition-fluid);
+    font-weight: bold;
+    transition: var(--ease-smooth);
+}
+.btn-action-smooth:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
 }
 
-.btn-retro-small:hover {
-    border-radius: 12px !important;
-    background: var(--accent);
-    color: #000;
-}
-
-.sidebar-bottom { padding: 10px; border-top: 1px solid var(--border-color); }
-
-.theme-selector { display: flex; gap: 6px; margin-bottom: 10px; }
-.theme-dot { width: 14px; height: 14px; border: 1px solid #000; cursor: pointer; transition: var(--transition-fluid); }
-.theme-dot:hover { border-radius: 50% !important; transform: scale(1.2); }
+.theme-selector { display: flex; gap: 8px; margin: 10px 0; }
+.theme-dot { width: 14px; height: 14px; border: 1px solid #000; cursor: pointer; transition: var(--ease-elastic); }
+.theme-dot:hover { border-radius: 50% !important; transform: scale(1.25); }
 .theme-dot.active { border: 2px solid white; }
 
 .dot-rose { background: #ff2a5f; }
@@ -215,66 +260,56 @@ input[type="text"]:focus, input[type="password"]:focus {
 .dot-amber { background: #ffaa00; }
 .dot-emerald { background: #00ff77; }
 
-.btn-logout {
+.btn-logout-smooth {
     width: 100%;
-    padding: 5px;
-    background: #201215;
-    border: 1px solid #5c1b24;
+    padding: 6px;
+    background: transparent;
+    border: 1px solid #4a171e;
     color: #ff5266;
-    font-size: 10px;
+    font-size: 9px;
+    font-weight: bold;
     cursor: pointer;
+    transition: var(--ease-smooth);
 }
+.btn-logout-smooth:hover { background: #4a171e; color: white; }
 
-/* ÁREAS DE CONVERSACIÓN PRINCIPAL */
+/* ÁREA CENTRAL DE MENSAJES */
 .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); }
-.main-header { background: var(--bg-box); padding: 8px 12px; border-bottom: 2px solid var(--border-color); }
-.channel-indicator { font-weight: bold; font-size: 11px; color: var(--accent); }
+.main-header { background: var(--bg-box); padding: 12px 20px; border-bottom: 1px solid var(--border-color); }
 
-#chat-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.status-indicator-container { display: flex; align-items: center; gap: 8px; }
+.status-ping { width: 6px; height: 6px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.channel-indicator { font-weight: bold; font-size: 12px; }
 
-/* ==========================================================================
-   NUEVOS GLOBOS DE MENSAJE ESTILO MESSENGER RETRO-MODERNO
-   ========================================================================== */
+#chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* GLOBOS DE TEXTO ORIGINALES ESTILO MESSENGER */
 .msg-row {
     display: flex;
     gap: 8px;
     max-width: 70%;
     align-self: flex-start;
     align-items: flex-end;
-    animation: popMessage 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: popMessage 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
 }
-
 @keyframes popMessage {
-    from { opacity: 0; transform: translateY(8px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.msg-row-me {
-    align-self: flex-end;
-    flex-direction: row-reverse;
-}
+.msg-row-me { align-self: flex-end; flex-direction: row-reverse; }
 
-/* Estilo Globo Messenger Modificado: Combinación de curvas redondeadas y asimetría */
 .msg-bubble {
     background: var(--bg-box);
     border: 1px solid var(--border-color);
     padding: 10px 14px;
-    border-radius: 18px 18px 18px 4px !important; /* Esquinas curvas orgánicas Messenger */
-    box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.5);
-    transition: var(--transition-fluid);
+    border-radius: 16px 16px 16px 4px !important;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3);
 }
-
-/* Hover en los mensajes: Se asientan quitando sombras rígidas */
-.msg-bubble:hover {
-    box-shadow: 1px 1px 0px rgba(0, 0, 0, 1);
-    border-color: var(--text-secondary);
-}
-
 .msg-row-me .msg-bubble {
     background: var(--accent-dark);
     border-color: var(--accent);
-    border-radius: 18px 18px 4px 18px !important; /* Esquina invertida para mis mensajes */
-    box-shadow: 3px 3px 0px #000;
+    border-radius: 16px 16px 4px 16px !important;
 }
 
 .msg-meta { display: flex; align-items: baseline; gap: 4px; margin-bottom: 2px; }
@@ -284,9 +319,27 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .msg-body { font-size: 12px; line-height: 1.4; word-break: break-word; color: #e5e5ea; }
 .msg-time { display: block; font-size: 8px; color: var(--text-secondary); text-align: right; margin-top: 4px; }
-.msg-row-me .msg-time { color: var(--text-primary); opacity: 0.6; }
 
-/* ENTRADA DE TEXTO INFERIOR */
-#chat-form { display: flex; padding: 10px; background: var(--bg-box); border-top: 2px solid var(--border-color); gap: 8px; }
-#chat-form input { flex: 1; padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); color: white; outline: none; }
-#chat-form button { width: auto; padding: 0 15px; }
+/* ÁREA DE ESCRITURA INFERIOR */
+#chat-form { display: flex; padding: 12px 20px; background: var(--bg-box); border-top: 1px solid var(--border-color); gap: 10px; }
+#chat-form input {
+    flex: 1;
+    padding: 11px 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: white;
+    outline: none;
+    transition: var(--ease-smooth);
+}
+#chat-form input:focus { border-color: var(--accent); }
+
+.btn-send-fluid {
+    padding: 0 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    transition: var(--ease-elastic);
+}
+.btn-send-fluid:hover { border-radius: 14px !important; transform: scale(1.03); }
