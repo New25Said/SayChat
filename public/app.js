@@ -19,7 +19,6 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const dbRef = ref(db);
 
-// Estado de la aplicación
 let currentUser = null;
 let tempRegisterAvatar = "";
 let tempEditAvatar = "";
@@ -158,17 +157,13 @@ const ChatService = {
 };
 
 // ==========================================================================
-// 4. CONTROLADORES DE EVENTOS (LISTENERS)
+// 4. LISTENERS
 // ==========================================================================
 
-// Ocultar o Mostrar barra lateral
 document.getElementById('toggle-sidebar-btn').addEventListener('click', () => UI.toggleSidebar());
-
-// Cambios de Vista de Autenticación
 document.getElementById('go-to-register').addEventListener('click', () => UI.switchAuthMode('register'));
 document.getElementById('go-to-login').addEventListener('click', () => UI.switchAuthMode('login'));
 
-// Captura de Imágenes
 document.getElementById('reg-avatar').addEventListener('change', (e) => {
     if (e.target.files[0]) {
         UI.utils.getBase64(e.target.files[0], (base64) => {
@@ -184,7 +179,6 @@ document.getElementById('edit-avatar').addEventListener('change', (e) => {
     if (e.target.files[0]) UI.utils.getBase64(e.target.files[0], (base64) => tempEditAvatar = base64);
 });
 
-// Acción: Registro
 document.getElementById('btn-register-submit').addEventListener('click', async () => {
     const name = document.getElementById('reg-name').value.trim();
     const nickname = document.getElementById('reg-nickname').value.trim();
@@ -202,7 +196,6 @@ document.getElementById('btn-register-submit').addEventListener('click', async (
     }
 });
 
-// Acción: Inicio de Sesión
 document.getElementById('btn-login-submit').addEventListener('click', async () => {
     const nickname = document.getElementById('login-nickname').value.trim();
     const password = document.getElementById('login-password').value;
@@ -219,7 +212,6 @@ document.getElementById('btn-login-submit').addEventListener('click', async () =
     }
 });
 
-// Acción: Actualizar Cuenta
 document.getElementById('save-profile-btn').addEventListener('click', async () => {
     const newName = document.getElementById('edit-name').value.trim();
     const userKey = currentUser.nickname.replace('@', '');
@@ -238,7 +230,6 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
     } catch (err) { alert("Error al guardar."); }
 });
 
-// Flujo de Mensajería
 const triggerSend = () => {
     const msg = UI.inputs.message.value.trim();
     if (msg && currentUser) {
@@ -250,12 +241,10 @@ const triggerSend = () => {
 document.getElementById('btn-send-message').addEventListener('click', triggerSend);
 UI.inputs.message.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerSend(); });
 
-// Inicialización de Escucha en Tiempo Real
 ChatService.listenMessages((data, authorData, isMe) => {
     UI.renderMessage(data, authorData, isMe);
 });
 
-// Temas y Logout
 document.getElementById('logout-btn').addEventListener('click', () => {
     localStorage.removeItem('chat_session_v4');
     location.reload();
@@ -269,7 +258,6 @@ document.querySelectorAll('[data-set-theme]').forEach(dot => {
     });
 });
 
-// Auto-Login mediante sesión guardada
 const saved = localStorage.getItem('chat_session_v4');
 if (saved) {
     currentUser = JSON.parse(saved);
