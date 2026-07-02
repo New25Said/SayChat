@@ -32,7 +32,8 @@ const UI = {
         auth: document.getElementById('auth-screen'),
         chat: document.getElementById('chat-screen'),
         loginArea: document.getElementById('login-area'),
-        registerArea: document.getElementById('register-area')
+        registerArea: document.getElementById('register-area'),
+        sidebar: document.getElementById('sidebar-panel')
     },
     inputs: {
         message: document.getElementById('message-input'),
@@ -58,11 +59,14 @@ const UI = {
         document.getElementById('current-user-nickname').textContent = user.nickname;
     },
 
+    toggleSidebar() {
+        this.screens.sidebar.classList.toggle('collapsed');
+    },
+
     renderMessage(data, authorData, isMe) {
         const msgRow = document.createElement('div');
         msgRow.classList.add('msg-row');
         
-        // Comprobación de seguridad visual para persistir entre computadoras
         if (isMe) {
             msgRow.classList.add('msg-row-me');
         }
@@ -95,11 +99,11 @@ const UI = {
 };
 
 // ==========================================================================
-// 3. MÓDULO DE SERVICIOS (FIREBASE & STORAGE)
+// 3. MÓDULO DE SERVICIOS (FIREBASE)
 // ==========================================================================
 const AuthService = {
     async register(name, nickname, password, avatarBase64) {
-        const cleanNick = nickname.replace('@', '').toLowerCase();
+        const cleanNick = nickname.replace('@', '').toLowerCase().trim();
         const snapshot = await get(child(dbRef, `users/${cleanNick}`));
         
         if (snapshot.exists()) throw new Error("ID_EXISTENTE");
@@ -110,7 +114,7 @@ const AuthService = {
     },
 
     async login(nickname, password) {
-        const cleanNick = nickname.replace('@', '').toLowerCase();
+        const cleanNick = nickname.replace('@', '').toLowerCase().trim();
         const snapshot = await get(child(dbRef, `users/${cleanNick}`));
 
         if (!snapshot.exists()) throw new Error("USER_NOT_FOUND");
@@ -147,7 +151,6 @@ const ChatService = {
             
             if (authorSnap.exists()) authorData = authorSnap.val();
             
-            // Verificación dinámica basada en el apodo (Persiste entre equipos y cierres de sesión)
             const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
             callback(data, authorData, isMe);
         });
@@ -157,6 +160,9 @@ const ChatService = {
 // ==========================================================================
 // 4. CONTROLADORES DE EVENTOS (LISTENERS)
 // ==========================================================================
+
+// Ocultar o Mostrar barra lateral
+document.getElementById('toggle-sidebar-btn').addEventListener('click', () => UI.toggleSidebar());
 
 // Cambios de Vista de Autenticación
 document.getElementById('go-to-register').addEventListener('click', () => UI.switchAuthMode('register'));
@@ -190,7 +196,6 @@ document.getElementById('btn-register-submit').addEventListener('click', async (
         currentUser = await AuthService.register(name, nickname, password, tempRegisterAvatar);
         localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
         UI.showChat(currentUser);
-        // Recargar la ventana para refrescar y reevaluar la propiedad 'isMe' de los mensajes antiguos
         location.reload();
     } catch (err) {
         alert(err.message === "ID_EXISTENTE" ? "El ID de usuario ya está ocupado." : "Error de red.");
@@ -208,7 +213,6 @@ document.getElementById('btn-login-submit').addEventListener('click', async () =
         currentUser = await AuthService.login(nickname, password);
         localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
         UI.showChat(currentUser);
-        // Recargar la ventana para refrescar y reevaluar la propiedad 'isMe' de los mensajes antiguos
         location.reload();
     } catch (err) {
         alert(err.message === "USER_NOT_FOUND" ? "El ID no existe." : "Contraseña incorrecta.");
