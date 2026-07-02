@@ -23,6 +23,15 @@ let currentUser = null;
 let unreadCount = 0;
 let baseTitle = "SayChat";
 let originalFavicon = null;
+let tempRegisterAvatar = "";
+let tempEditAvatar = "";
+
+// Función helper global para la conversión segura de imágenes
+const convertFileToBase64 = (file, callback) => {
+    const reader = new FileReader();
+    reader.onloadend = () => callback(reader.result);
+    reader.readAsDataURL(file);
+};
 
 // ==========================================================================
 // MÓDULO SUBSISTEMA DE NOTIFICACIONES REALES Y BURBUJAS EN PESTAÑA
@@ -32,7 +41,7 @@ const NotificationSystem = {
         const sound = document.getElementById('noti-sound');
         if (sound) {
             sound.currentTime = 0;
-            sound.play().catch(e => console.log("Audio en espera de interacción de usuario."));
+            sound.play().catch(e => console.log("Audio en espera de interacción."));
         }
         
         if (!document.hasFocus()) {
@@ -47,7 +56,6 @@ const NotificationSystem = {
         this.restoreFavicon();
     },
     updateFaviconBadge() {
-        // Subsistema dinámico de burbuja roja en la pestaña usando Canvas
         if (!originalFavicon) {
             const currentFav = document.querySelector("link[rel*='icon']");
             originalFavicon = currentFav ? currentFav.href : "";
@@ -178,7 +186,6 @@ const PresenceSystem = {
     setOnline(userKey) {
         if (!userKey) return;
         set(ref(db, `presence/${userKey}`), { online: true, lastSeen: Date.now() });
-        // Quitar de online al cerrar pestaña de forma nativa en la nube
         const presenceRef = ref(db, `presence/${userKey}`);
         window.addEventListener('beforeunload', () => set(presenceRef, { online: false, lastSeen: Date.now() }));
     },
@@ -188,7 +195,9 @@ const PresenceSystem = {
     },
     listenPresence() {
         onValue(ref(db, 'presence'), async (snapshot) => {
-            document.getElementById('users-connected-list').innerHTML = "";
+            const listContainer = document.getElementById('users-connected-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = "";
             const presenceData = snapshot.val() || {};
             
             const usersSnap = await get(child(dbRef, 'users'));
@@ -205,11 +214,10 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// 4. MÓDULO DE SERVICIOS (FIREBASE & AUTENTICACIÓN AVANZADA)
+// 4. MÓDULO DE SERVICIOS (FIREBASE & AUTENTICACIÓN)
 // ==========================================================================
 const AuthService = {
     async register(name, nickname, password, avatarBase64) {
-        // Filtro estricto solicitado: No espacios, no mayúsculas
         const cleanNick = nickname.trim();
         if (/[A-Z\s]/.test(cleanNick)) {
             throw new Error("VALIDATION_FAILED");
@@ -233,228 +241,3 @@ const AuthService = {
         
         const userData = snapshot.val();
         if (userData.password !== password) throw new Error("INVALID_PASSWORD");
-        
-        return userData;
-    }
-};
-
-const ChatService = {
-    sendMessage(userKey, message, type = 'text', stickerUrl = '') {
-        push(ref(db, 'messages'), {
-            userKey: userKey,
-            message: message,
-            type: type,
-            stickerUrl: stickerUrl,
-            timestamp: Date.now()
-        });
-    },
-
-    listenMessages(callback) {
-        let initialLoad = true;
-        // Evitamos disparar notificaciones masivas de mensajes históricos al iniciar la app
-        setTimeout(() => { initialLoad = false; }, 2000);
-
-        onChildAdded(ref(db, 'messages'), async (snapshot) => {
-            const data = snapshot.val();
-            const authorSnap = await get(child(dbRef, `users/${data.userKey}`));
-            let authorData = { name: "Usuario", nickname: "@unknown", avatar: "" };
-            
-            if (authorSnap.exists()) authorData = authorSnap.val();
-            
-            const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
-            
-            if (!initialLoad && !isMe) {
-                NotificationSystem.trigger();
-            }
-            callback(data, authorData, isMe);
-        });
-    }
-};
-
-const StickerService = {
-    uploadSticker(base64) {
-        push(ref(db, 'stickers'), { base64: base64 });
-    },
-    listenStickers(callback) {
-        onChildAdded(ref(db, 'stickers'), (snapshot) => {
-            callback(snapshot.val().base64);
-        });
-    }
-};
-
-// ==========================================================================
-// 5. LISTENERS DE ACCIÓN COMPLETA
-// ==========================================================================
-
-document.getElementById('toggle-sidebar-btn').addEventListener('click', () => UI.toggleSidebar());
-document.getElementById('go-to-register').addEventListener('click', () => UI.switchAuthMode('register'));
-document.getElementById('go-to-login').addEventListener('click', () => UI.switchAuthMode('login'));
-
-// Tabs de Navegación en Barra Lateral
-document.getElementById('btn-nav-global').addEventListener('click', (e) => {
-    document.getElementById('btn-nav-global').classList.add('active');
-    document.getElementById('btn-nav-users').classList.remove('active');
-    document.getElementById('settings-area').classList.remove('hidden');
-    document.getElementById('users-list-area').classList.add('hidden');
-});
-
-document.getElementById('btn-nav-users').addEventListener('click', (e) => {
-    document.getElementById('btn-nav-users').classList.add('active');
-    document.getElementById('btn-nav-global').classList.remove('active');
-    document.getElementById('settings-area').classList.add('hidden');
-    document.getElementById('users-list-area').classList.remove('hidden');
-});
-
-// Manejo de Fotos e inputs
-document.getElementById('reg-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        UI.utils.getBase64(e.target.files[0], (base64) => {
-            tempRegisterAvatar = base64;
-            const preview = document.getElementById('reg-preview');
-            preview.src = base64; preview.classList.remove('hidden');
-        });
-    }
-});
-
-// EVENTO: EDITAR FOTO SOBRE LA PROPIA IMAGEN EN VIVO
-document.getElementById('edit-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0] && currentUser) {
-        UI.utils.getBase64(e.target.files[0], async (base64) => {
-            const userKey = currentUser.nickname.replace('@', '');
-            await update(ref(db, `users/${userKey}`), { avatar: base64 });
-            currentUser.avatar = base64;
-            localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
-            document.getElementById('current-user-avatar').src = base64;
-            NotificationSystem.showLocalToast("Avatar actualizado");
-        });
-    }
-});
-
-// EVENTO IN-LINE: DAR CLICK AL NOMBRE PARA EDITAR CON ENTER
-const userNameElement = document.getElementById('current-user-name');
-const editNameInput = document.getElementById('edit-name-input');
-
-userNameElement.addEventListener('click', () => {
-    editNameInput.value = userNameElement.textContent;
-    userNameElement.classList.add('hidden');
-    editNameInput.classList.remove('hidden');
-    editNameInput.focus();
-});
-
-editNameInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-        const val = editNameInput.value.trim();
-        if (val.length >= 3 && val.length <= 50 && currentUser) {
-            const userKey = currentUser.nickname.replace('@', '');
-            await update(ref(db, `users/${userKey}`), { name: val });
-            currentUser.name = val;
-            localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
-            userNameElement.textContent = val;
-            NotificationSystem.showLocalToast("Nombre cambiado");
-        } else {
-            alert("El nombre debe tener entre 3 y 50 letras.");
-        }
-        editNameInput.classList.add('hidden');
-        userNameElement.classList.remove('hidden');
-    }
-});
-
-// ENVIAR MENSAJES
-const triggerSend = () => {
-    const msg = UI.inputs.message.value.trim();
-    if (msg && currentUser) {
-        ChatService.sendMessage(currentUser.nickname.replace('@', ''), msg);
-        UI.inputs.message.value = '';
-    }
-};
-document.getElementById('btn-send-message').addEventListener('click', triggerSend);
-UI.inputs.message.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerSend(); });
-
-// ACCIONES DE REGISTRO / LOGIN
-document.getElementById('btn-register-submit').addEventListener('click', async () => {
-    const name = document.getElementById('reg-name').value.trim();
-    const nickname = document.getElementById('reg-nickname').value.trim();
-    const password = document.getElementById('reg-password').value;
-    if (!tempRegisterAvatar) return alert("Sube un avatar.");
-
-    try {
-        currentUser = await AuthService.register(name, nickname, password, tempRegisterAvatar);
-        localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
-        PresenceSystem.setOnline(currentUser.nickname.replace('@', ''));
-        UI.showChat(currentUser);
-        location.reload();
-    } catch (err) {
-        if (err.message === "VALIDATION_FAILED") alert("El Username/ID no puede contener mayúsculas ni espacios.");
-        else if (err.message === "LEN_USER_ERROR") alert("El Username/ID debe tener entre 4 y 15 letras.");
-        else if (err.message === "LEN_NICK_ERROR") alert("Tu nombre real debe tener entre 3 y 50 letras.");
-        else alert("ID en uso.");
-    }
-});
-
-document.getElementById('btn-login-submit').addEventListener('click', async () => {
-    const nickname = document.getElementById('login-nickname').value.trim();
-    const password = document.getElementById('login-password').value;
-
-    try {
-        currentUser = await AuthService.login(nickname, password);
-        localStorage.setItem('chat_session_v4', JSON.stringify(currentUser));
-        PresenceSystem.setOnline(currentUser.nickname.replace('@', ''));
-        UI.showChat(currentUser);
-        location.reload();
-    } catch (err) { alert("Credenciales incorrectas."); }
-});
-
-// STICKERS COMPACTOS SUBIDA Y ENVÍO
-document.getElementById('btn-toggle-stickers').addEventListener('click', () => {
-    document.getElementById('stickers-panel').classList.toggle('hidden');
-});
-
-document.getElementById('upload-sticker-input').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        UI.utils.getBase64(e.target.files[0], (base64) => {
-            StickerService.uploadSticker(base64);
-            NotificationSystem.showLocalToast("Sticker añadido");
-        });
-    }
-});
-
-StickerService.listenStickers((base64) => {
-    const grid = document.getElementById('stickers-grid');
-    const img = document.createElement('img');
-    img.src = base64;
-    img.classList.add('grid-stk-img');
-    img.addEventListener('click', () => {
-        if (currentUser) {
-            ChatService.sendMessage(currentUser.nickname.replace('@', ''), '[Sticker]', 'sticker', base64);
-            document.getElementById('stickers-panel').classList.add('hidden');
-        }
-    });
-    grid.appendChild(img);
-});
-
-// LOGOUT
-document.getElementById('logout-btn').addEventListener('click', () => {
-    if (currentUser) PresenceSystem.setOffline(currentUser.nickname.replace('@', ''));
-    localStorage.removeItem('chat_session_v4');
-    location.reload();
-});
-
-// TEMAS
-document.querySelectorAll('[data-set-theme]').forEach(dot => {
-    dot.addEventListener('click', (e) => {
-        document.body.setAttribute('data-theme', e.target.getAttribute('data-set-theme'));
-        document.querySelectorAll('.theme-circle').forEach(d => d.classList.remove('active'));
-        e.target.classList.add('active');
-    });
-});
-
-// INICIALIZACIÓN CORE
-ChatService.listenMessages((data, authorData, isMe) => UI.renderMessage(data, authorData, isMe));
-
-const saved = localStorage.getItem('chat_session_v4');
-if (saved) {
-    currentUser = JSON.parse(saved);
-    PresenceSystem.setOnline(currentUser.nickname.replace('@', ''));
-    PresenceSystem.listenPresence();
-    UI.showChat(currentUser);
-}
