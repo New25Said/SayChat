@@ -58,3 +58,50 @@
                     </div>
 
                     <div class="profile-settings-panel">
+                        <span class="panel-section-title">Editar Perfil</span>
+                        <input type="text" id="edit-name" placeholder="Modificar nombre">
+                        <div class="mini-upload-trigger">
+                            <label for="edit-avatar">Cambiar foto de perfil</label>
+                            <input type="file" id="edit-avatar" accept="image/*">
+                        </div>
+                        <button type="button" id="save-profile-btn" class="btn-action-outline">Guardar Cambios</button>
+                    </div>
+                </div>
+
+                <div class="sidebar-bottom-content">
+                    <span class="panel-section-title">Tema Visual</span>
+                    <div class="theme-picker">
+                        <button type="button" class="theme-circle dot-rose active" data-set-theme="rose"></button>
+                        <button type="button" class="theme-circle dot-cyan" data-set-theme="cyan"></button>
+                        <button type="button" class="theme-circle dot-amber" data-set-theme="amber"></button>
+                        <button type="button" class="theme-circle dot-emerald" data-set-theme="emerald"></button>
+                    </div>
+                    <button type="button" id="logout-btn" class="btn-disconnect">Cerrar Sesión</button>
+                </div>
+            </aside>
+
+            <section class="chat-viewport">
+                <header class="chat-viewport-header">
+                    <div class="header-left">
+                        <button type="button" id="toggle-sidebar-btn" class="btn-toggle" title="Ocultar/Mostrar Menú">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                        </button>
+                        <span class="chat-title">sala-general</span>
+                    </div>
+                </header>
+                
+                <main id="chat-box">
+                    </main>
+                
+                <form id="chat-form" onsubmit="return false;">
+                    <input type="text" id="message-input" placeholder="Escribe un mensaje aquí..." required autocomplete="off">
+                    <button type="button" id="btn-send-message" class="btn-send-minimal">Enviar</button>
+                </form>
+            </section>
+
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
