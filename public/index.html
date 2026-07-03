@@ -68,9 +68,9 @@
                         <div class="my-name-block">
                             <div class="editable-name-container" id="name-container">
                                 <h3 id="current-user-name" title="Click para editar">---</h3>
-                                <input type="text" id="edit-name-input" class="hidden-edit-input">
                                 <span class="pencil-icon">✎</span>
                             </div>
+                            <input type="text" id="edit-name-input" class="hidden-edit-input hidden">
                             <span id="current-user-nickname">@---</span>
                         </div>
                     </div>
@@ -100,14 +100,15 @@
                     <div id="users-connected-list"></div>
                 </div>
 
-                <!-- SELECTOR DE TEMAS INFERIOR -->
+                <!-- SELECTOR DE TEMAS EN MENÚ DESPLEGABLE MINIMALISTA -->
                 <footer class="sidebar-footer">
-                    <div class="theme-picker">
-                        <button type="button" class="theme-circle dot-rose active" data-set-theme="rose"></button>
-                        <button type="button" class="theme-circle dot-cyan" data-set-theme="cyan"></button>
-                        <button type="button" class="theme-circle dot-amber" data-set-theme="amber"></button>
-                        <button type="button" class="theme-circle dot-emerald" data-set-theme="emerald"></button>
-                    </div>
+                    <span class="theme-dropdown-title">Tema Visual</span>
+                    <select id="theme-dropdown" class="whatsapp-dropdown">
+                        <option value="rose" selected>Rojo Rosado</option>
+                        <option value="cyan">Cian Cyber</option>
+                        <option value="amber">Ámbar Retro</option>
+                        <option value="emerald">Esmeralda</option>
+                    </select>
                 </footer>
             </aside>
 
