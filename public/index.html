@@ -53,7 +53,7 @@
         </div>
     </div>
 
-    <!-- INTERFAZ DEL CHAT ESTILO WHATSAPP -->
+    <!-- INTERFAZ DEL CHAT ESTILO WHATSAPP MODERNIZADO -->
     <div id="chat-screen" class="window-screen hidden">
         <div class="whatsapp-layout-wrapper">
             
@@ -68,9 +68,14 @@
                         </div>
                     </div>
                     <div class="header-actions-right">
-                        <!-- BOTÓN LAPIZITO PREMIUM PARA ABRIR PERFIL -->
-                        <button type="button" id="open-profile-modal-btn" class="btn-sidebar-action" title="Editar Perfil" style="margin-right: 8px;">✎</button>
-                        <button type="button" id="logout-btn" class="btn-sidebar-action" title="Cerrar Sesión">✕</button>
+                        <!-- ICONO VECTORIAL LÁPIZ (SVG) -->
+                        <button type="button" id="open-profile-modal-btn" class="btn-sidebar-action" title="Editar Perfil" style="margin-right: 12px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path></svg>
+                        </button>
+                        <!-- ICONO VECTORIAL CERRAR SESIÓN (SVG) -->
+                        <button type="button" id="logout-btn" class="btn-sidebar-action" title="Cerrar Sesión">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        </button>
                     </div>
                 </header>
 
@@ -78,7 +83,9 @@
                 <div class="global-tab-item-box">
                     <div id="btn-nav-global" class="contact-list-row active">
                         <div class="contact-avatar-wrapper">
-                            <div class="global-avatar-icon">🌐</div>
+                            <div class="global-avatar-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                            </div>
                         </div>
                         <div class="contact-info-block">
                             <div class="contact-row-top">
@@ -86,6 +93,8 @@
                             </div>
                             <p class="contact-sub">Sala pública de la comunidad</p>
                         </div>
+                        <!-- NUEVO: BOLITA ROJA DE MENSAJES NO LEÍDOS PARA EL CHAT GLOBAL -->
+                        <span class="private-unread-badge hidden" id="unread-badge-global">0</span>
                     </div>
                 </div>
 
@@ -120,7 +129,10 @@
 
                 <!-- BARRA DE ESCRITURA INFERIOR -->
                 <div id="chat-form-mock">
-                    <button type="button" id="btn-toggle-stickers" class="btn-stk-trigger">☺</button>
+                    <!-- ICONO VECTORIAL STICKERS (SVG) -->
+                    <button type="button" id="btn-toggle-stickers" class="btn-stk-trigger">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                    </button>
                     <input type="text" id="message-input" placeholder="Escribe un mensaje..." autocomplete="off">
                     <button type="button" id="btn-send-message" class="btn-send-whatsapp">Enviar</button>
                 </div>
@@ -129,12 +141,14 @@
         </div>
     </div>
 
-    <!-- NOUVEAU: MENU MODAL FLOTANTE CENTRAL DE EDICIÓN DE PERFIL -->
+    <!-- MENU MODAL FLOTANTE CENTRAL DE EDICIÓN DE PERFIL -->
     <div id="profile-edit-modal" class="modal-overlay hidden">
         <div class="modal-card animate-fade">
             <div class="modal-header">
                 <h3>Editar tu Perfil</h3>
-                <button type="button" id="close-profile-modal-btn" class="btn-close-modal">✕</button>
+                <button type="button" id="close-profile-modal-btn" class="btn-close-modal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <div class="modal-avatar-section">
