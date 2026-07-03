@@ -61,47 +61,23 @@
             <aside class="whatsapp-sidebar">
                 <header class="sidebar-header">
                     <div class="my-profile-stub">
-                        <img id="current-user-avatar" src="" alt="Avatar" class="custom-avatar profile-main-img">
+                        <label for="edit-avatar" class="avatar-edit-label" title="Cambiar Foto">
+                            <img id="current-user-avatar" src="" alt="Avatar" class="custom-avatar profile-main-img">
+                            <input type="file" id="edit-avatar" accept="image/*">
+                        </label>
                         <div class="my-name-block">
-                            <h3 id="current-user-name">---</h3>
+                            <div class="editable-name-container" id="name-container">
+                                <h3 id="current-user-name" title="Click para editar">---</h3>
+                                <input type="text" id="edit-name-input" class="hidden-edit-input">
+                                <span class="pencil-icon">✎</span>
+                            </div>
                             <span id="current-user-nickname">@---</span>
                         </div>
                     </div>
                     <div class="header-actions-right">
-                        <!-- BOTÓN DE TUERCA QUE AHORA ABRE EL MENÚ DESPLEGABLE -->
-                        <button type="button" id="toggle-settings-btn" class="btn-sidebar-action-gear" title="Ajustes y Perfil">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                        </button>
+                        <button type="button" id="logout-btn" class="btn-sidebar-action" title="Cerrar Sesión">✕</button>
                     </div>
                 </header>
-
-                <!-- MENÚ DESPLEGABLE FLOTANTE (ESTADO INICIAL: COLLAPSED / HIDDEN) -->
-                <div id="settings-area" class="profile-dropdown-menu collapsed">
-                    <div class="dropdown-inner-wrapper">
-                        <span class="panel-section-title">Editar Identidad</span>
-                        
-                        <div class="dropdown-avatar-row">
-                            <label for="edit-avatar" class="avatar-edit-label" title="Cambiar Foto">
-                                <span class="avatar-hover-overlay">Cambiar</span>
-                                <input type="file" id="edit-avatar" accept="image/*">
-                            </label>
-                            <div class="editable-name-container" id="name-container">
-                                <input type="text" id="edit-name-input" class="hidden-edit-input" placeholder="Presiona Enter para guardar...">
-                                <span class="pencil-icon">Click en tu nombre arriba para cambiar ✎</span>
-                            </div>
-                        </div>
-
-                        <span class="panel-section-title">Tema de la App</span>
-                        <div class="theme-picker">
-                            <button type="button" class="theme-circle dot-rose active" data-set-theme="rose"></button>
-                            <button type="button" class="theme-circle dot-cyan" data-set-theme="cyan"></button>
-                            <button type="button" class="theme-circle dot-amber" data-set-theme="amber"></button>
-                            <button type="button" class="theme-circle dot-emerald" data-set-theme="emerald"></button>
-                        </div>
-
-                        <button type="button" id="logout-btn" class="btn-dropdown-logout">Cerrar Sesión</button>
-                    </div>
-                </div>
 
                 <!-- PESTAÑA FIJA PARA CHAT GLOBAL -->
                 <div class="global-tab-item-box">
@@ -123,6 +99,16 @@
                     <span class="chats-section-title">Chats Privados</span>
                     <div id="users-connected-list"></div>
                 </div>
+
+                <!-- SELECTOR DE TEMAS INFERIOR -->
+                <footer class="sidebar-footer">
+                    <div class="theme-picker">
+                        <button type="button" class="theme-circle dot-rose active" data-set-theme="rose"></button>
+                        <button type="button" class="theme-circle dot-cyan" data-set-theme="cyan"></button>
+                        <button type="button" class="theme-circle dot-amber" data-set-theme="amber"></button>
+                        <button type="button" class="theme-circle dot-emerald" data-set-theme="emerald"></button>
+                    </div>
+                </footer>
             </aside>
 
             <!-- COLUMNA DERECHA: VENTANA DE CONVERSACIÓN -->
@@ -133,6 +119,7 @@
                     </div>
                 </header>
                 
+                <!-- FONDO TIPO WHATSAPP CON TEXTURA MATE -->
                 <main id="chat-box" class="whatsapp-chat-bg">
                     <!-- Mensajes en vivo -->
                 </main>
