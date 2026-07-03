@@ -22,10 +22,11 @@ const dbRef = ref(db);
 let currentUser = null;
 let currentChatTarget = "global"; 
 let unreadCountGlobal = 0;
-let privateUnreadCounts = {}; // Registra los conteos de mensajes privados en segundo plano
+let privateUnreadCounts = {}; 
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
+let tempModalAvatarBase64 = ""; // Almacén temporal para foto cargada en modal
 let loginTimeMark = Date.now(); 
 
 const imageToConvert64 = (file, callback) => {
@@ -35,7 +36,7 @@ const imageToConvert64 = (file, callback) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES GENERALES Y GLOBOS EN PESTAÑA
+// NOTIFICACIONES GENERALES
 // ==========================================================================
 const NotificationSystem = {
     trigger() {
@@ -100,7 +101,7 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// SUBSISTEMA DE PRESENCIA AVANZADA (SIN PARPADEOS - DIFFING REAL)
+// SUBSISTEMA DE PRESENCIA ACTIVA AVANZADA
 // ==========================================================================
 const PresenceSystem = {
     updateState(status) {
@@ -136,7 +137,6 @@ const PresenceSystem = {
                     const userState = presenceData[key] ? presenceData[key].status : "offline";
                     let existingRow = document.getElementById(`user-row-${key}`);
 
-                    // CONTROL DE EXTRACTO FLUIDO (DIFFING): Evita recrear el nodo si ya existe en la barra
                     if (!existingRow) {
                         existingRow = document.createElement('div');
                         existingRow.id = `user-row-${key}`;
@@ -163,7 +163,6 @@ const PresenceSystem = {
                             existingRow.classList.add('active');
                             document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
                             
-                            // Resetea y oculta la bolita roja privada al entrar a la conversación
                             privateUnreadCounts[key] = 0;
                             const badge = document.getElementById(`unread-badge-${key}`);
                             if (badge) { badge.classList.add('hidden'); }
@@ -173,14 +172,10 @@ const PresenceSystem = {
 
                         listContainer.appendChild(existingRow);
                     } else {
-                        // Cambia de clase la bolita de estado sin alterar ni parpadear la lista entera
                         const dot = existingRow.querySelector('.status-indicator-dot');
-                        if (dot) {
-                            dot.className = `status-indicator-dot ${userState}`;
-                        }
+                        if (dot) { dot.className = `status-indicator-dot ${userState}`; }
                     }
 
-                    // Forzar pintado de la alerta numérica de mensajes no leídos si existen
                     const badge = document.getElementById(`unread-badge-${key}`);
                     if (badge && privateUnreadCounts[key] > 0) {
                         badge.textContent = privateUnreadCounts[key];
@@ -243,7 +238,69 @@ const reloadMessagesUI = () => {
 };
 
 // ==========================================================================
-// FILTROS Y EVENTOS DE INTERACCIÓN
+// GESTIÓN DEL MODAL CENTRAL DE PERFIL
+// ==========================================================================
+const modalOverlay = document.getElementById('profile-edit-modal');
+const openModalBtn = document.getElementById('open-profile-modal-btn');
+const closeModalBtn = document.getElementById('close-profile-modal-btn');
+const saveProfileBtn = document.getElementById('btn-save-profile-modal');
+const modalAvatarImg = document.getElementById('modal-user-avatar');
+const modalNameInput = document.getElementById('edit-name-input');
+
+if (openModalBtn) {
+    openModalBtn.addEventListener('click', () => {
+        if (currentUser) {
+            modalAvatarImg.src = currentUser.avatar;
+            modalNameInput.value = currentUser.name;
+            tempModalAvatarBase64 = currentUser.avatar; // Inicializa con el avatar actual
+            modalOverlay.classList.remove('hidden');
+        }
+    });
+}
+
+if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', () => modalOverlay.classList.add('hidden'));
+}
+
+document.getElementById('edit-avatar').addEventListener('change', (e) => {
+    if (e.target.files[0]) {
+        imageToConvert64(e.target.files[0], (base64) => {
+            tempModalAvatarBase64 = base64;
+            modalAvatarImg.src = base64;
+        });
+    }
+});
+
+if (saveProfileBtn) {
+    saveProfileBtn.addEventListener('click', async () => {
+        const newName = modalNameInput.value.trim();
+        if (newName.length < 3 || newName.length > 50) {
+            return alert("El nombre debe tener entre 3 y 50 letras.");
+        }
+        if (currentUser) {
+            const userKey = currentUser.nickname.replace('@', '');
+            await update(ref(db, `users/${userKey}`), { 
+                name: newName, 
+                avatar: tempModalAvatarBase64 
+            });
+            
+            currentUser.name = newName;
+            currentUser.avatar = tempModalAvatarBase64;
+            localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
+            
+            // Actualizar interfaz principal
+            document.getElementById('current-user-avatar').src = currentUser.avatar;
+            document.getElementById('current-user-name').textContent = currentUser.name;
+            
+            modalOverlay.classList.add('hidden');
+            NotificationSystem.showLocalToast("Perfil Guardado");
+            reloadMessagesUI();
+        }
+    });
+}
+
+// ==========================================================================
+// FILTROS, ENTRADAS Y MENSAJERÍA
 // ==========================================================================
 
 document.getElementById('go-to-register').addEventListener('click', () => {
@@ -328,42 +385,6 @@ const executeMessageSend = () => {
 document.getElementById('btn-send-message').addEventListener('click', executeMessageSend);
 document.getElementById('message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeMessageSend(); });
 
-// EDITAR NOMBRE E IMAGEN DESDE EL AVATAR
-document.getElementById('edit-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0] && currentUser) {
-        imageToConvert64(e.target.files[0], async (base64) => {
-            const userKey = currentUser.nickname.replace('@', '');
-            await update(ref(db, `users/${userKey}`), { avatar: base64 });
-            currentUser.avatar = base64;
-            localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-            document.getElementById('current-user-avatar').src = base64;
-            NotificationSystem.showLocalToast("Avatar guardado");
-        });
-    }
-});
-
-const userNameElement = document.getElementById('current-user-name');
-const editNameInput = document.getElementById('edit-name-input');
-userNameElement.addEventListener('click', () => {
-    editNameInput.value = userNameElement.textContent;
-    userNameElement.classList.remove('hidden');
-    editNameInput.focus();
-});
-editNameInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-        const val = editNameInput.value.trim();
-        if (val.length >= 3 && val.length <= 50 && currentUser) {
-            const userKey = currentUser.nickname.replace('@', '');
-            await update(ref(db, `users/${userKey}`), { name: val });
-            currentUser.name = val;
-            localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-            userNameElement.textContent = val;
-            NotificationSystem.showLocalToast("Nombre cambiado");
-        }
-        editNameInput.classList.add('hidden');
-    }
-});
-
 // STICKERS
 document.getElementById('btn-toggle-stickers').addEventListener('click', () => {
     document.getElementById('stickers-panel').classList.toggle('hidden');
@@ -391,7 +412,7 @@ onChildAdded(ref(db, 'stickers'), (snapshot) => {
     grid.appendChild(img);
 });
 
-// ESCUCHAR TRANSMISIÓN DE MENSAJES CON FILTRO DE BOLITA ROJA PRIVADA
+// TRANSMISIÓN DE MENSAJES
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
     const authorSnap = await get(child(dbRef, `users/${data.sender}`));
@@ -411,11 +432,8 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
 
     if (isNewMessage) {
-        if (!isMe) {
-            NotificationSystem.trigger();
-        }
+        if (!isMe) { NotificationSystem.trigger(); }
 
-        // CONTROL BURBUJA ROJA PRIVADA: Si recibes un mensaje privado y NO estás dentro de esa conversación activa
         if (data.channel === "private" && data.sender !== currentChatTarget) {
             const senderKey = data.sender;
             privateUnreadCounts[senderKey] = (privateUnreadCounts[senderKey] || 0) + 1;
@@ -431,23 +449,13 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
     reloadMessagesUI();
 });
 
-// ESCUCHA DEL TEMAS EN EL SELECT DESPLEGABLE DE LA BARRA INFERIOR
-const themeDropdown = document.getElementById('theme-dropdown');
-if (themeDropdown) {
-    themeDropdown.addEventListener('change', (e) => {
-        const selectedTheme = e.target.value;
-        document.body.setAttribute('data-theme', selectedTheme);
-        NotificationSystem.showLocalToast(`Tema ${selectedTheme} aplicado`);
-    });
-}
-
 document.getElementById('logout-btn').addEventListener('click', () => {
     PresenceSystem.updateState("offline");
     localStorage.removeItem('chat_session_v5');
     location.reload();
 });
 
-// EVALUAR SESIÓN ACTIVA AL INICIAR
+// EVALUAR SESIÓN
 const savedSession = localStorage.getItem('chat_session_v5');
 if (savedSession) {
     currentUser = JSON.parse(savedSession);
@@ -458,8 +466,6 @@ if (savedSession) {
     document.getElementById('current-user-name').textContent = currentUser.name;
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
-    if (themeDropdown) themeDropdown.value = document.body.getAttribute('data-theme') || 'rose';
-
     PresenceSystem.init();
     PresenceSystem.listenPresence();
 }
