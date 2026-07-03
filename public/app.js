@@ -26,7 +26,7 @@ let privateUnreadCounts = {};
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
-let tempModalAvatarBase64 = ""; // Almacén temporal para foto cargada en modal
+let tempModalAvatarBase64 = ""; 
 let loginTimeMark = Date.now(); 
 
 const imageToConvert64 = (file, callback) => {
@@ -101,7 +101,7 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// SUBSISTEMA DE PRESENCIA ACTIVA AVANZADA
+// SUBSISTEMA DE PRESENCIA AVANZADA (SIN PARPADEOS - DIFFING REAL)
 // ==========================================================================
 const PresenceSystem = {
     updateState(status) {
@@ -120,6 +120,11 @@ const PresenceSystem = {
         });
     },
     listenPresence() {
+        // Escucha cambios globales en el nodo de usuarios para repintar chats si cambian de foto/nombre en vivo
+        onValue(ref(db, 'users'), () => {
+            if (currentUser) reloadMessagesUI();
+        });
+
         onValue(ref(db, 'presence'), async (snapshot) => {
             const listContainer = document.getElementById('users-connected-list');
             if (!listContainer) return;
@@ -144,12 +149,12 @@ const PresenceSystem = {
                         
                         existingRow.innerHTML = `
                             <div class="contact-avatar-wrapper">
-                                <img src="${user.avatar}" class="custom-avatar" alt="Avatar">
+                                <img src="${user.avatar}" class="custom-avatar target-user-img" alt="Avatar">
                                 <span class="status-indicator-dot ${userState}"></span>
                             </div>
                             <div class="contact-info-block">
                                 <div class="contact-row-top">
-                                    <h4>${user.name}</h4>
+                                    <h4 class="target-user-name">${user.name}</h4>
                                 </div>
                                 <p class="contact-sub">${user.nickname}</p>
                             </div>
@@ -172,8 +177,15 @@ const PresenceSystem = {
 
                         listContainer.appendChild(existingRow);
                     } else {
+                        // Actualizar bolitas de presencia e información en caliente si editan perfil
                         const dot = existingRow.querySelector('.status-indicator-dot');
                         if (dot) { dot.className = `status-indicator-dot ${userState}`; }
+                        
+                        const textName = existingRow.querySelector('.target-user-name');
+                        if (textName && textName.textContent !== user.name) textName.textContent = user.name;
+                        
+                        const imgAv = existingRow.querySelector('.target-user-img');
+                        if (imgAv && imgAv.src !== user.avatar) imgAv.src = user.avatar;
                     }
 
                     const badge = document.getElementById(`unread-badge-${key}`);
@@ -188,14 +200,19 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// CONTROLADORES DE RENDERIZADO DE MENSAJES
+// ARQUITECTURA RELACIONAL EN VIVO: CONSULTA AL NODO DE USUARIOS DE FIREBASE
 // ==========================================================================
 let allMessagesCache = [];
 
-const reloadMessagesUI = () => {
+const reloadMessagesUI = async () => {
     const box = document.getElementById('chat-box');
     box.innerHTML = "";
     
+    // Traemos una instantánea fresca del nodo global de usuarios
+    const usersSnapshot = await get(child(dbRef, 'users'));
+    if (!usersSnapshot.exists()) return;
+    const currentUsersDB = usersSnapshot.val();
+
     allMessagesCache.forEach(msgData => {
         let shouldRender = false;
         if (currentChatTarget === "global" && msgData.channel === "global") {
@@ -209,9 +226,12 @@ const reloadMessagesUI = () => {
         }
 
         if (shouldRender) {
+            // SOLUCIÓN AL BUG: Consultamos la configuración del usuario en tiempo real desde la DB usando su sender key
+            const liveAuthor = currentUsersDB[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: "" };
+
             const msgRow = document.createElement('div');
             msgRow.classList.add('msg-row');
-            if (currentUser && msgData.authorNickname.toLowerCase() === currentUser.nickname.toLowerCase()) {
+            if (currentUser && liveAuthor.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) {
                 msgRow.classList.add('msg-row-me');
             }
 
@@ -222,10 +242,11 @@ const reloadMessagesUI = () => {
             }
 
             msgRow.innerHTML = `
+                <img src="${liveAuthor.avatar || ''}" class="custom-avatar" style="width:28px; height:28px; margin-bottom:4px;" alt="Avatar">
                 <div class="msg-bubble">
                     <div class="msg-meta">
-                        <span class="meta-name">${msgData.authorName}</span>
-                        <span class="meta-nick">${msgData.authorNickname}</span>
+                        <span class="meta-name">${liveAuthor.name}</span>
+                        <span class="meta-nick">${liveAuthor.nickname}</span>
                     </div>
                     ${contentHTML}
                     <span class="msg-time">${time}</span>
@@ -252,7 +273,7 @@ if (openModalBtn) {
         if (currentUser) {
             modalAvatarImg.src = currentUser.avatar;
             modalNameInput.value = currentUser.name;
-            tempModalAvatarBase64 = currentUser.avatar; // Inicializa con el avatar actual
+            tempModalAvatarBase64 = currentUser.avatar; 
             modalOverlay.classList.remove('hidden');
         }
     });
@@ -274,33 +295,28 @@ document.getElementById('edit-avatar').addEventListener('change', (e) => {
 if (saveProfileBtn) {
     saveProfileBtn.addEventListener('click', async () => {
         const newName = modalNameInput.value.trim();
-        if (newName.length < 3 || newName.length > 50) {
-            return alert("El nombre debe tener entre 3 y 50 letras.");
-        }
+        if (newName.length < 3 || newName.length > 50) return alert("El nombre debe tener entre 3 y 50 letras.");
+        
         if (currentUser) {
             const userKey = currentUser.nickname.replace('@', '');
-            await update(ref(db, `users/${userKey}`), { 
-                name: newName, 
-                avatar: tempModalAvatarBase64 
-            });
+            await update(ref(db, `users/${userKey}`), { name: newName, avatar: tempModalAvatarBase64 });
             
             currentUser.name = newName;
             currentUser.avatar = tempModalAvatarBase64;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
             
-            // Actualizar interfaz principal
             document.getElementById('current-user-avatar').src = currentUser.avatar;
             document.getElementById('current-user-name').textContent = currentUser.name;
             
             modalOverlay.classList.add('hidden');
             NotificationSystem.showLocalToast("Perfil Guardado");
-            reloadMessagesUI();
+            await reloadMessagesUI();
         }
     });
 }
 
 // ==========================================================================
-// FILTROS, ENTRADAS Y MENSAJERÍA
+// ENTRADAS Y ENVÍO
 // ==========================================================================
 
 document.getElementById('go-to-register').addEventListener('click', () => {
@@ -317,6 +333,11 @@ document.getElementById('btn-nav-global').addEventListener('click', () => {
     document.getElementById('btn-nav-global').classList.add('active');
     document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
     document.getElementById('header-channel-title').textContent = "SayChat // Global";
+    
+    // Limpia la bolita roja del chat global al entrar
+    privateUnreadCounts["global"] = 0;
+    document.getElementById('unread-badge-global').classList.add('hidden');
+    
     reloadMessagesUI();
 });
 
@@ -412,29 +433,26 @@ onChildAdded(ref(db, 'stickers'), (snapshot) => {
     grid.appendChild(img);
 });
 
-// TRANSMISIÓN DE MENSAJES
+// ESCUCHAR TRANSMISIÓN DE MENSAJES Y PINTAR ALERTAS ROJAS (GLOBAL Y PRIVADO)
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
-    const authorSnap = await get(child(dbRef, `users/${data.sender}`));
-    let authorData = { name: "Usuario", nickname: "@unknown", avatar: "" };
-    if (authorSnap.exists()) authorData = authorSnap.val();
-
-    const cachePayload = {
-        ...data,
-        authorName: authorData.name,
-        authorNickname: authorData.nickname,
-        authorAvatar: authorData.avatar
-    };
-
-    allMessagesCache.push(cachePayload);
+    allMessagesCache.push(data);
 
     const isNewMessage = data.timestamp > loginTimeMark;
-    const isMe = currentUser && authorData.nickname.toLowerCase() === currentUser.nickname.toLowerCase();
+    const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
 
     if (isNewMessage) {
         if (!isMe) { NotificationSystem.trigger(); }
 
-        if (data.channel === "private" && data.sender !== currentChatTarget) {
+        // NUEVO: Bolitas rojas activas tanto para el chat global como para salas privadas en segundo plano
+        if (data.channel === "global" && currentChatTarget !== "global") {
+            privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
+            const globalBadge = document.getElementById('unread-badge-global');
+            if (globalBadge) {
+                globalBadge.textContent = privateUnreadCounts["global"];
+                globalBadge.classList.remove('hidden');
+            }
+        } else if (data.channel === "private" && data.sender !== currentChatTarget) {
             const senderKey = data.sender;
             privateUnreadCounts[senderKey] = (privateUnreadCounts[senderKey] || 0) + 1;
             
@@ -446,7 +464,7 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
         }
     }
 
-    reloadMessagesUI();
+    await reloadMessagesUI();
 });
 
 document.getElementById('logout-btn').addEventListener('click', () => {
