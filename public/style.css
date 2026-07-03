@@ -12,7 +12,7 @@
     --accent-glow: rgba(255, 42, 95, 0.15);
     --accent-dark: #4c0519;   /* Tono oscuro para mis burbujas */
     --font-stack: 'Plus Jakarta Sans', system-ui, sans-serif;
-    --ease-normal: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-normal: all 0.15s ease-out;
 }
 
 body[data-theme="cyan"] { --accent: #00f0ff; --accent-glow: rgba(0, 240, 255, 0.15); }
@@ -56,7 +56,6 @@ html, body {
     width: 100%;
     max-width: 330px;
     padding: 35px 24px;
-    border-radius: 8px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
@@ -74,7 +73,6 @@ input[type="text"], input[type="password"] {
     color: var(--text-main);
     outline: none;
     margin-bottom: 12px;
-    border-radius: 6px;
     transition: var(--ease-normal);
 }
 input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); }
@@ -87,7 +85,6 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
     border: none;
     font-weight: 600;
     cursor: pointer;
-    border-radius: 6px;
     font-size: 14px;
     transition: var(--ease-normal);
 }
@@ -103,7 +100,6 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
     background: var(--bg-input);
     padding: 8px 12px;
     margin-bottom: 16px;
-    border-radius: 6px;
 }
 .file-btn { font-size: 11px; font-weight: 500; color: var(--text-muted); cursor: pointer; padding: 4px 8px; border: 1px solid var(--border-clean); text-align: center; width: 65%; }
 .whatsapp-file-zone input[type="file"], .avatar-edit-label input[type="file"] { display: none; }
@@ -111,29 +107,28 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .custom-avatar { width: 40px; height: 40px; object-fit: cover; border-radius: 50% !important; background: #222; border: 1px solid var(--border-clean); }
 
 /* ==========================================================================
-   MAQUETACIÓN DE ALINEACIÓN HORIZONTAL (CORRECCIÓN DEL BUG DE APILADO)
+   MAQUETACIÓN PRINCIPAL
    ========================================================================== */
 .whatsapp-layout-wrapper { 
     display: flex; 
-    flex-direction: row; /* Fuerza la alineación de izquierda a derecha */
+    flex-direction: row; 
     width: 100vw; 
     height: 100vh; 
 }
 
-/* Columna Izquierda Fija */
 .whatsapp-sidebar {
     width: 310px;
-    min-width: 310px; /* Evita que se encoja horizontalmente */
+    min-width: 310px; 
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border-clean);
     display: flex;
     flex-direction: column;
     height: 100%;
+    position: relative; /* Permite posicionar el menú desplegable de forma absoluta */
 }
 
-/* Columna Derecha Dinámica */
 .whatsapp-viewport { 
-    flex: 1; /* Ocupa automáticamente todo el espacio restante a la derecha */
+    flex: 1; 
     display: flex; 
     flex-direction: column; 
     background: var(--bg-main); 
@@ -142,7 +137,7 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 }
 
 /* ==========================================================================
-   COMPONENTES DE LA BARRA LATERAL (SIDEBAR)
+   BARRA LATERAL Y NUEVO MENÚ DESPLEGABLE POPUP
    ========================================================================== */
 .sidebar-header {
     background: var(--bg-header);
@@ -150,22 +145,67 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 60px; /* Altura controlada estándar */
+    height: 60px;
 }
 
 .my-profile-stub { display: flex; align-items: center; gap: 12px; }
-.profile-main-img { cursor: pointer; }
-.profile-main-img:hover { border-color: var(--accent); }
 .my-name-block h3 { font-size: 13px; color: var(--text-main); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; }
 .my-name-block h3:hover { color: var(--accent); }
 .my-name-block span { font-size: 10.5px; color: var(--text-muted); }
 
-.pencil-icon { font-size: 10px; color: var(--text-muted); opacity: 0.6; }
-.hidden-edit-input { background: var(--bg-input); border: 1px solid var(--accent); color: white; padding: 4px; font-size: 12.5px; width: 110px; outline: none; border-radius: 4px; }
+.btn-sidebar-action-gear { background: transparent; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 6px; display: flex; align-items: center; transition: var(--ease-normal); }
+.btn-sidebar-action-gear:hover { color: var(--text-main); transform: rotate(25deg); }
 
-.btn-sidebar-action { background: transparent; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 4px; }
-.btn-sidebar-action:hover { color: #ef4444; }
+/* CORRECCIÓN: MENÚ DESPLEGABLE FLOTANTE COMPACTO */
+.profile-dropdown-menu {
+    position: absolute;
+    top: 60px; /* Justo debajo de la cabecera */
+    left: 10px;
+    right: 10px;
+    background: #182229; /* Color destacado flotante */
+    border: 1px solid var(--border-clean);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    z-index: 999; /* Por encima de los contactos */
+    max-height: 300px;
+    overflow: hidden;
+    transition: max-height 0.15s ease-in-out, opacity 0.1s ease-out;
+    opacity: 1;
+}
 
+.profile-dropdown-menu.collapsed {
+    max-height: 0px;
+    border: 1px solid transparent;
+    box-shadow: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dropdown-inner-wrapper { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.dropdown-avatar-row { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+
+.avatar-edit-label { display: block; background: var(--bg-input); border: 1px solid var(--border-clean); padding: 6px; text-align: center; font-size: 11px; color: var(--text-muted); cursor: pointer; width: 100%; }
+.avatar-edit-label:hover { color: white; border-color: var(--text-muted); }
+
+.pencil-icon { font-size: 10px; color: var(--text-muted); display: block; margin-top: -4px; }
+.hidden-edit-input { background: var(--bg-input); border: 1px solid var(--accent); color: white; padding: 6px; font-size: 12.5px; width: 100%; outline: none; }
+
+.btn-dropdown-logout {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid #4a151b;
+    color: #ff5266;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 5px;
+    transition: var(--ease-normal);
+}
+.btn-dropdown-logout:hover { background: #4a151b; color: white; }
+
+/* ==========================================================================
+   LISTADO DE CHATS / CONTACTOS
+   ========================================================================== */
 .global-tab-item-box { padding: 4px 0; border-bottom: 1px solid var(--border-clean); }
 .contacts-scroll-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 .chats-section-title { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px 4px 14px; }
@@ -186,7 +226,7 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .contact-avatar-wrapper { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
 .global-avatar-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; font-size: 18px; }
 
-/* INDICADORES DE PRESENCIA EN AVATAR */
+/* INDICADORES */
 .status-indicator-dot {
     position: absolute;
     bottom: -1px;
@@ -197,16 +237,15 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
     background: #71717a; 
     border: 2px solid var(--bg-sidebar);
 }
-.status-indicator-dot.online { background: #00a884; } /* Verde */
-.status-indicator-dot.idle { background: #f59e0b; }   /* Naranja */
-.status-indicator-dot.offline { background: transparent; border: 1.5px solid #71717a; } /* Gris */
+.status-indicator-dot.online { background: #00a884; } 
+.status-indicator-dot.idle { background: #f59e0b; }   
+.status-indicator-dot.offline { background: transparent; border: 1.5px solid #71717a; } 
 
 .contact-info-block { flex: 1; min-width: 0; }
 .contact-row-top { display: flex; justify-content: space-between; align-items: center; }
 .contact-info-block h4 { font-size: 13.5px; color: var(--text-main); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact-sub { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
 
-/* CONTADOR GLOBOS ROJOS EN FILAS */
 .private-unread-badge {
     background: var(--accent);
     color: white;
@@ -234,28 +273,25 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .dot-emerald { background: #10b981; }
 
 /* ==========================================================================
-   COMPONENTES DEL ÁREA DE CONVERSACIÓN (VIEWPORT CHAT)
+   VIEWPORT CHAT
    ========================================================================== */
 .viewport-header { 
     background: var(--bg-header); 
     padding: 14px 20px; 
     border-bottom: 1px solid var(--border-clean); 
-    height: 60px; /* Sincronizado en altura con el lateral */
+    height: 60px; 
     display: flex;
     align-items: center;
 }
 .active-chat-meta h2 { font-size: 14px; font-weight: 600; color: var(--text-main); }
 
 #chat-box { flex: 1; padding: 20px 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-
-/* TEXTURA MATE TIPO WHATSAPP */
 .whatsapp-chat-bg {
     background-color: #0b141a;
     background-image: radial-gradient(rgba(255, 42, 95, 0.02) 1px, transparent 0);
     background-size: 24px 24px;
 }
 
-/* GLOBOS ASIMÉTRICOS */
 .msg-row {
     display: flex;
     max-width: 65%;
@@ -289,7 +325,7 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .msg-sticker { max-width: 90px; max-height: 90px; display: block; margin-top: 3px; }
 .msg-time { display: block; font-size: 8.5px; color: var(--text-muted); text-align: right; margin-top: 4px; }
 
-/* STICKERS POPUP WINDOW */
+/* STICKERS */
 .stickers-popup { position: absolute; bottom: 65px; left: 20px; width: 230px; background: var(--bg-sidebar); border: 1px solid var(--border-clean); padding: 10px; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 100; }
 .stickers-header { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; margin-bottom: 8px; color: var(--text-muted); }
 .btn-upload-stk { color: var(--accent); cursor: pointer; font-weight: bold; }
@@ -297,13 +333,10 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .grid-stk-img { width: 100%; height: 42px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-clean); cursor: pointer; }
 .grid-stk-img:hover { border-color: var(--accent); }
 
-/* BARRA DE ESCRITURA */
 #chat-form-mock { display: flex; padding: 12px 18px; background: var(--bg-header); gap: 12px; align-items: center; }
 .btn-stk-trigger { background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 0 4px; }
-.btn-stk-trigger:hover { color: var(--text-main); }
 #chat-form-mock input { flex: 1; padding: 10px 16px; background: var(--bg-input); border: none; color: var(--text-main); outline: none; border-radius: 8px; font-size: 14px; }
 
 .btn-send-whatsapp { padding: 10px 18px; background: var(--accent); color: white; border: none; font-weight: 600; cursor: pointer; border-radius: 8px; }
 
-/* REGLAS GLOBALES DEL TOAST */
 .toast-popup { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--bg-header); border: 1px solid var(--border-clean); color: white; padding: 6px 14px; font-size: 12px; border-radius: 20px; z-index: 1000; }
