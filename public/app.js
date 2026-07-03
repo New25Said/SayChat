@@ -22,7 +22,7 @@ const dbRef = ref(db);
 let currentUser = null;
 let currentChatTarget = "global"; 
 let unreadCountGlobal = 0;
-let privateUnreadCounts = {}; // Estructura para registrar los conteos de mensajes privados en segundo plano
+let privateUnreadCounts = {}; // Registra los conteos de mensajes privados en segundo plano
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
@@ -35,7 +35,7 @@ const imageToConvert64 = (file, callback) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES GENERALES
+// NOTIFICACIONES GENERALES Y GLOBOS EN PESTAÑA
 // ==========================================================================
 const NotificationSystem = {
     trigger() {
@@ -100,7 +100,7 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// SUBSISTEMA DE PRESENCIA ACTIVA AVANZADA (SIN PARPADEOS - DIFFING REAL)
+// SUBSISTEMA DE PRESENCIA AVANZADA (SIN PARPADEOS - DIFFING REAL)
 // ==========================================================================
 const PresenceSystem = {
     updateState(status) {
@@ -136,7 +136,7 @@ const PresenceSystem = {
                     const userState = presenceData[key] ? presenceData[key].status : "offline";
                     let existingRow = document.getElementById(`user-row-${key}`);
 
-                    // SISTEMA DE DIFFING COMPOSICIÓN FLUIDA: Si no existe lo crea, si ya existe solo muta la bolita
+                    // CONTROL DE EXTRACTO FLUIDO (DIFFING): Evita recrear el nodo si ya existe en la barra
                     if (!existingRow) {
                         existingRow = document.createElement('div');
                         existingRow.id = `user-row-${key}`;
@@ -163,7 +163,7 @@ const PresenceSystem = {
                             existingRow.classList.add('active');
                             document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
                             
-                            // Limpia la bolita roja privada al entrar al chat
+                            // Resetea y oculta la bolita roja privada al entrar a la conversación
                             privateUnreadCounts[key] = 0;
                             const badge = document.getElementById(`unread-badge-${key}`);
                             if (badge) { badge.classList.add('hidden'); }
@@ -173,14 +173,14 @@ const PresenceSystem = {
 
                         listContainer.appendChild(existingRow);
                     } else {
-                        // Mutación silenciosa e instantánea de la bolita de estado sin reconstruir la fila
+                        // Cambia de clase la bolita de estado sin alterar ni parpadear la lista entera
                         const dot = existingRow.querySelector('.status-indicator-dot');
                         if (dot) {
                             dot.className = `status-indicator-dot ${userState}`;
                         }
                     }
 
-                    // Actualizar burbuja roja privada si hay registros pendientes
+                    // Forzar pintado de la alerta numérica de mensajes no leídos si existen
                     const badge = document.getElementById(`unread-badge-${key}`);
                     if (badge && privateUnreadCounts[key] > 0) {
                         badge.textContent = privateUnreadCounts[key];
@@ -243,7 +243,7 @@ const reloadMessagesUI = () => {
 };
 
 // ==========================================================================
-// FILTROS Y EVENTOS
+// FILTROS Y EVENTOS DE INTERACCIÓN
 // ==========================================================================
 
 document.getElementById('go-to-register').addEventListener('click', () => {
@@ -328,7 +328,7 @@ const executeMessageSend = () => {
 document.getElementById('btn-send-message').addEventListener('click', executeMessageSend);
 document.getElementById('message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeMessageSend(); });
 
-// EDITAR NOMBRE E IMAGEN EN LÍNEA
+// EDITAR NOMBRE E IMAGEN DESDE EL AVATAR
 document.getElementById('edit-avatar').addEventListener('change', (e) => {
     if (e.target.files[0] && currentUser) {
         imageToConvert64(e.target.files[0], async (base64) => {
@@ -346,8 +346,7 @@ const userNameElement = document.getElementById('current-user-name');
 const editNameInput = document.getElementById('edit-name-input');
 userNameElement.addEventListener('click', () => {
     editNameInput.value = userNameElement.textContent;
-    userNameElement.classList.add('hidden');
-    editNameInput.classList.remove('hidden');
+    userNameElement.classList.remove('hidden');
     editNameInput.focus();
 });
 editNameInput.addEventListener('keydown', async (e) => {
@@ -362,7 +361,6 @@ editNameInput.addEventListener('keydown', async (e) => {
             NotificationSystem.showLocalToast("Nombre cambiado");
         }
         editNameInput.classList.add('hidden');
-        userNameElement.classList.remove('hidden');
     }
 });
 
@@ -433,14 +431,15 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
     reloadMessagesUI();
 });
 
-// TEMAS
-document.querySelectorAll('[data-set-theme]').forEach(dot => {
-    dot.addEventListener('click', (e) => {
-        document.body.setAttribute('data-theme', e.target.getAttribute('data-set-theme'));
-        document.querySelectorAll('.theme-circle').forEach(d => d.classList.remove('active'));
-        e.target.classList.add('active');
+// ESCUCHA DEL TEMAS EN EL SELECT DESPLEGABLE DE LA BARRA INFERIOR
+const themeDropdown = document.getElementById('theme-dropdown');
+if (themeDropdown) {
+    themeDropdown.addEventListener('change', (e) => {
+        const selectedTheme = e.target.value;
+        document.body.setAttribute('data-theme', selectedTheme);
+        NotificationSystem.showLocalToast(`Tema ${selectedTheme} aplicado`);
     });
-});
+}
 
 document.getElementById('logout-btn').addEventListener('click', () => {
     PresenceSystem.updateState("offline");
@@ -448,7 +447,7 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     location.reload();
 });
 
-// EVALUAR SESIÓN
+// EVALUAR SESIÓN ACTIVA AL INICIAR
 const savedSession = localStorage.getItem('chat_session_v5');
 if (savedSession) {
     currentUser = JSON.parse(savedSession);
@@ -459,6 +458,8 @@ if (savedSession) {
     document.getElementById('current-user-name').textContent = currentUser.name;
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
+    if (themeDropdown) themeDropdown.value = document.body.getAttribute('data-theme') || 'rose';
+
     PresenceSystem.init();
     PresenceSystem.listenPresence();
 }
