@@ -21,12 +21,14 @@ const dbRef = ref(db);
 
 let currentUser = null;
 let currentChatTarget = "global"; 
+let chatTargetType = "global"; // "global", "private", "group"
 let unreadCountGlobal = 0;
 let privateUnreadCounts = {}; 
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
 let tempModalAvatarBase64 = ""; 
+let tempGroupAvatarBase64 = ""; // Almacén temporal foto de grupo
 let loginTimeMark = Date.now(); 
 
 const imageToConvert64 = (file, callback) => {
@@ -36,7 +38,7 @@ const imageToConvert64 = (file, callback) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES GENERALES
+// SISTEMA DE NOTIFICACIONES
 // ==========================================================================
 const NotificationSystem = {
     trigger() {
@@ -64,36 +66,18 @@ const NotificationSystem = {
         const canvas = document.createElement('canvas');
         canvas.width = 32; canvas.height = 32;
         const ctx = canvas.getContext('2d');
-        
-        ctx.fillStyle = '#ff2a5f';
-        ctx.beginPath();
-        ctx.arc(16, 16, 14, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(unreadCountGlobal > 9 ? '9+' : unreadCountGlobal, 16, 16);
-        
+        ctx.fillStyle = '#ff2a5f'; ctx.beginPath(); ctx.arc(16, 16, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(unreadCountGlobal > 9 ? '9+' : unreadCountGlobal, 16, 16);
         let link = document.querySelector("link[rel*='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'shortcut icon';
-            document.getElementsByTagName('head')[0].appendChild(link);
-        }
+        if (!link) { link = document.createElement('link'); link.rel = 'shortcut icon'; document.getElementsByTagName('head')[0].appendChild(link); }
         link.href = canvas.toDataURL();
     },
     restoreFavicon() {
-        if (originalFavicon) {
-            const link = document.querySelector("link[rel*='icon']");
-            if (link) link.href = originalFavicon;
-        }
+        if (originalFavicon) { const link = document.querySelector("link[rel*='icon']"); if (link) link.href = originalFavicon; }
     },
     showLocalToast(text) {
         const toast = document.getElementById('toast-notification');
-        toast.textContent = text;
-        toast.classList.remove('hidden');
+        toast.textContent = text; toast.classList.remove('hidden');
         setTimeout(() => toast.classList.add('hidden'), 2000);
     }
 };
@@ -101,7 +85,7 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// SUBSISTEMA DE PRESENCIA AVANZADA (SIN PARPADEOS - DIFFING REAL)
+// PRESENCIA Y CHATS CON FILTRADO RELACIONAL COMPLETO (DIFFING REAL)
 // ==========================================================================
 const PresenceSystem = {
     updateState(status) {
@@ -120,87 +104,127 @@ const PresenceSystem = {
         });
     },
     listenPresence() {
-        // Escucha cambios globales en el nodo de usuarios para repintar chats si cambian de foto/nombre en vivo
-        onValue(ref(db, 'users'), () => {
-            if (currentUser) reloadMessagesUI();
+        onValue(ref(db, 'users'), () => { if (currentUser) reloadMessagesUI(); });
+        onValue(ref(db, 'groups'), () => { if (currentUser) this.renderListsAndPresence(); });
+
+        onValue(ref(db, 'presence'), () => {
+            if (currentUser) this.renderListsAndPresence();
         });
+    },
+    async renderListsAndPresence() {
+        const listContainer = document.getElementById('users-connected-list');
+        if (!listContainer) return;
 
-        onValue(ref(db, 'presence'), async (snapshot) => {
-            const listContainer = document.getElementById('users-connected-list');
-            if (!listContainer) return;
-            
-            const presenceData = snapshot.val() || {};
-            const usersSnap = await get(child(dbRef, 'users'));
-            
-            if (usersSnap.exists()) {
-                const allUsers = usersSnap.val();
+        const snapPresence = await get(child(dbRef, 'presence'));
+        const presenceData = snapPresence.val() || {};
+
+        const snapUsers = await get(child(dbRef, 'users'));
+        if (!snapUsers.exists()) return;
+        const allUsers = snapUsers.val();
+
+        // 1. INYECTAR/ACTUALIZAR GRUPOS PERTENECIENTES v4
+        const snapGroups = await get(child(dbRef, 'groups'));
+        if (snapGroups.exists()) {
+            const allGroups = snapGroups.val();
+            Object.keys(allGroups).forEach(gKey => {
+                const group = allGroups[gKey];
+                const myKey = currentUser.nickname.replace('@', '');
                 
-                Object.keys(allUsers).forEach(key => {
-                    const user = allUsers[key];
-                    if (currentUser && user.nickname === currentUser.nickname) return;
+                // Filtro estricto: Solo lo ven los que están en el grupo
+                if (!group.members || !group.members.includes(myKey)) {
+                    const rowOld = document.getElementById(`group-row-${gKey}`);
+                    if (rowOld) rowOld.remove();
+                    return;
+                }
 
-                    const userState = presenceData[key] ? presenceData[key].status : "offline";
-                    let existingRow = document.getElementById(`user-row-${key}`);
+                let existingRow = document.getElementById(`group-row-${gKey}`);
+                if (!existingRow) {
+                    existingRow = document.createElement('div');
+                    existingRow.id = `group-row-${gKey}`;
+                    existingRow.classList.add('contact-list-row');
+                    existingRow.innerHTML = `
+                        <div class="contact-avatar-wrapper">
+                            <img src="${group.avatar}" class="custom-avatar" alt="Group">
+                        </div>
+                        <div class="contact-info-block">
+                            <h4>${group.name}</h4>
+                            <p class="contact-sub" style="color:var(--accent)">👥 Grupo de SayChat</p>
+                        </div>
+                        <span class="private-unread-badge hidden" id="unread-badge-${gKey}">0</span>
+                    `;
+                    existingRow.addEventListener('click', () => {
+                        currentChatTarget = gKey; chatTargetType = "group";
+                        document.getElementById('btn-nav-global').classList.remove('active');
+                        document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
+                        existingRow.classList.add('active');
+                        document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
+                        privateUnreadCounts[gKey] = 0;
+                        document.getElementById(`unread-badge-${gKey}`).classList.add('hidden');
+                        reloadMessagesUI();
+                    });
+                    listContainer.appendChild(existingRow);
+                }
+                
+                const badge = document.getElementById(`unread-badge-${gKey}`);
+                if (badge && privateUnreadCounts[gKey] > 0) {
+                    badge.textContent = privateUnreadCounts[gKey]; badge.classList.remove('hidden');
+                }
+            });
+        }
 
-                    if (!existingRow) {
-                        existingRow = document.createElement('div');
-                        existingRow.id = `user-row-${key}`;
-                        existingRow.classList.add('contact-list-row');
-                        
-                        existingRow.innerHTML = `
-                            <div class="contact-avatar-wrapper">
-                                <img src="${user.avatar}" class="custom-avatar target-user-img" alt="Avatar">
-                                <span class="status-indicator-dot ${userState}"></span>
-                            </div>
-                            <div class="contact-info-block">
-                                <div class="contact-row-top">
-                                    <h4 class="target-user-name">${user.name}</h4>
-                                </div>
-                                <p class="contact-sub">${user.nickname}</p>
-                            </div>
-                            <span class="private-unread-badge hidden" id="unread-badge-${key}">0</span>
-                        `;
+        // 2. INYECTAR/ACTUALIZAR USUARIOS DIRECTOS
+        Object.keys(allUsers).forEach(key => {
+            const user = allUsers[key];
+            if (currentUser && user.nickname === currentUser.nickname) return;
 
-                        existingRow.addEventListener('click', () => {
-                            currentChatTarget = key;
-                            document.getElementById('btn-nav-global').classList.remove('active');
-                            document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
-                            existingRow.classList.add('active');
-                            document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
-                            
-                            privateUnreadCounts[key] = 0;
-                            const badge = document.getElementById(`unread-badge-${key}`);
-                            if (badge) { badge.classList.add('hidden'); }
-                            
-                            reloadMessagesUI();
-                        });
+            const userState = presenceData[key] ? presenceData[key].status : "offline";
+            let existingRow = document.getElementById(`user-row-${key}`);
 
-                        listContainer.appendChild(existingRow);
-                    } else {
-                        // Actualizar bolitas de presencia e información en caliente si editan perfil
-                        const dot = existingRow.querySelector('.status-indicator-dot');
-                        if (dot) { dot.className = `status-indicator-dot ${userState}`; }
-                        
-                        const textName = existingRow.querySelector('.target-user-name');
-                        if (textName && textName.textContent !== user.name) textName.textContent = user.name;
-                        
-                        const imgAv = existingRow.querySelector('.target-user-img');
-                        if (imgAv && imgAv.src !== user.avatar) imgAv.src = user.avatar;
-                    }
-
-                    const badge = document.getElementById(`unread-badge-${key}`);
-                    if (badge && privateUnreadCounts[key] > 0) {
-                        badge.textContent = privateUnreadCounts[key];
-                        badge.classList.remove('hidden');
-                    }
+            if (!existingRow) {
+                existingRow = document.createElement('div');
+                existingRow.id = `user-row-${key}`;
+                existingRow.classList.add('contact-list-row');
+                existingRow.innerHTML = `
+                    <div class="contact-avatar-wrapper">
+                        <img src="${user.avatar}" class="custom-avatar target-user-img" alt="Avatar">
+                        <span class="status-indicator-dot ${userState}"></span>
+                    </div>
+                    <div class="contact-info-block">
+                        <h4 class="target-user-name">${user.name}</h4>
+                        <p class="contact-sub">${user.nickname}</p>
+                    </div>
+                    <span class="private-unread-badge hidden" id="unread-badge-${key}">0</span>
+                `;
+                existingRow.addEventListener('click', () => {
+                    currentChatTarget = key; chatTargetType = "private";
+                    document.getElementById('btn-nav-global').classList.remove('active');
+                    document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
+                    existingRow.classList.add('active');
+                    document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
+                    privateUnreadCounts[key] = 0;
+                    document.getElementById(`unread-badge-${key}`).classList.add('hidden');
+                    reloadMessagesUI();
                 });
+                listContainer.appendChild(existingRow);
+            } else {
+                const dot = existingRow.querySelector('.status-indicator-dot');
+                if (dot) dot.className = `status-indicator-dot ${userState}`;
+                const textName = existingRow.querySelector('.target-user-name');
+                if (textName) textName.textContent = user.name;
+                const imgAv = existingRow.querySelector('.target-user-img');
+                if (imgAv) imgAv.src = user.avatar;
+            }
+
+            const badge = document.getElementById(`unread-badge-${key}`);
+            if (badge && privateUnreadCounts[key] > 0) {
+                badge.textContent = privateUnreadCounts[key]; badge.classList.remove('hidden');
             }
         });
     }
 };
 
 // ==========================================================================
-// ARQUITECTURA RELACIONAL EN VIVO: CONSULTA AL NODO DE USUARIOS DE FIREBASE
+// RENDERIZADOR DE MENSAJES FLUIDO EN CACHÉ (CORREGIDO PARPADO)
 // ==========================================================================
 let allMessagesCache = [];
 
@@ -208,37 +232,48 @@ const reloadMessagesUI = async () => {
     const box = document.getElementById('chat-box');
     box.innerHTML = "";
     
-    // Traemos una instantánea fresca del nodo global de usuarios
     const usersSnapshot = await get(child(dbRef, 'users'));
     if (!usersSnapshot.exists()) return;
     const currentUsersDB = usersSnapshot.val();
 
     allMessagesCache.forEach(msgData => {
         let shouldRender = false;
+        
         if (currentChatTarget === "global" && msgData.channel === "global") {
             shouldRender = true;
-        } else if (currentChatTarget !== "global" && msgData.channel === "private") {
+        } else if (chatTargetType === "private" && msgData.channel === "private") {
             const myKey = currentUser.nickname.replace('@', '');
             if ((msgData.sender === myKey && msgData.receiver === currentChatTarget) || 
                 (msgData.sender === currentChatTarget && msgData.receiver === myKey)) {
                 shouldRender = true;
             }
+        } else if (chatTargetType === "group" && msgData.channel === "group" && msgData.receiver === currentChatTarget) {
+            shouldRender = true;
         }
 
         if (shouldRender) {
-            // SOLUCIÓN AL BUG: Consultamos la configuración del usuario en tiempo real desde la DB usando su sender key
-            const liveAuthor = currentUsersDB[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: "" };
-
-            const msgRow = document.createElement('div');
-            msgRow.classList.add('msg-row');
-            if (currentUser && liveAuthor.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) {
-                msgRow.classList.add('msg-row-me');
+            if (msgData.type === 'system') {
+                const sysDiv = document.createElement('div');
+                sysDiv.classList.add('msg-system-line');
+                sysDiv.textContent = msgData.message;
+                box.appendChild(sysDiv);
+                return;
             }
 
+            const liveAuthor = currentUsersDB[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: "" };
+            const msgRow = document.createElement('div');
+            msgRow.classList.add('msg-row');
+            if (currentUser && liveAuthor.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) msgRow.classList.add('msg-row-me');
+
             const time = new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
             let contentHTML = `<p class="msg-body">${msgData.message}</p>`;
             if (msgData.type === 'sticker') {
-                contentHTML = `<img src="${msgData.stickerUrl}" class="msg-sticker" alt="Sticker">`;
+                contentHTML = `<img src="${msgData.stickerUrl}" class="msg-sticker previewable-sticker" alt="Sticker">`;
+            } else if (msgData.type === 'image') {
+                contentHTML = `<img src="${msgData.mediaUrl}" class="msg-media-expanded" alt="Foto adjuntada">`;
+            } else if (msgData.type === 'video') {
+                contentHTML = `<video src="${msgData.mediaUrl}" controls class="msg-media-expanded"></video>`;
             }
 
             msgRow.innerHTML = `
@@ -256,10 +291,26 @@ const reloadMessagesUI = async () => {
         }
     });
     box.scrollTop = box.scrollHeight;
+    attachStickerPreviewEvents();
+};
+
+// PREVIEW MEDIANO DE STICKERS v4
+const attachStickerPreviewEvents = () => {
+    document.querySelectorAll('.previewable-sticker').forEach(stk => {
+        stk.onclick = (e) => {
+            e.stopPropagation();
+            const viewer = document.getElementById('sticker-viewer-overlay');
+            document.getElementById('sticker-viewer-img').src = stk.src;
+            viewer.classList.remove('hidden');
+        };
+    });
+};
+document.getElementById('sticker-viewer-overlay').onclick = () => {
+    document.getElementById('sticker-viewer-overlay').classList.add('hidden');
 };
 
 // ==========================================================================
-// GESTIÓN DEL MODAL CENTRAL DE PERFIL
+// MODALES CENTRALES (PERFIL Y CREACIÓN DE GRUPOS)
 // ==========================================================================
 const modalOverlay = document.getElementById('profile-edit-modal');
 const openModalBtn = document.getElementById('open-profile-modal-btn');
@@ -271,43 +322,28 @@ const modalNameInput = document.getElementById('edit-name-input');
 if (openModalBtn) {
     openModalBtn.addEventListener('click', () => {
         if (currentUser) {
-            modalAvatarImg.src = currentUser.avatar;
-            modalNameInput.value = currentUser.name;
-            tempModalAvatarBase64 = currentUser.avatar; 
-            modalOverlay.classList.remove('hidden');
+            modalAvatarImg.src = currentUser.avatar; modalNameInput.value = currentUser.name;
+            tempModalAvatarBase64 = currentUser.avatar; modalOverlay.classList.remove('hidden');
         }
     });
 }
-
-if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', () => modalOverlay.classList.add('hidden'));
-}
+if (closeModalBtn) closeModalBtn.addEventListener('click', () => modalOverlay.classList.add('hidden'));
 
 document.getElementById('edit-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        imageToConvert64(e.target.files[0], (base64) => {
-            tempModalAvatarBase64 = base64;
-            modalAvatarImg.src = base64;
-        });
-    }
+    if (e.target.files[0]) imageToConvert64(e.target.files[0], (b64) => { tempModalAvatarBase64 = b64; modalAvatarImg.src = b64; });
 });
 
 if (saveProfileBtn) {
     saveProfileBtn.addEventListener('click', async () => {
         const newName = modalNameInput.value.trim();
         if (newName.length < 3 || newName.length > 50) return alert("El nombre debe tener entre 3 y 50 letras.");
-        
         if (currentUser) {
             const userKey = currentUser.nickname.replace('@', '');
             await update(ref(db, `users/${userKey}`), { name: newName, avatar: tempModalAvatarBase64 });
-            
-            currentUser.name = newName;
-            currentUser.avatar = tempModalAvatarBase64;
+            currentUser.name = newName; currentUser.avatar = tempModalAvatarBase64;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-            
             document.getElementById('current-user-avatar').src = currentUser.avatar;
             document.getElementById('current-user-name').textContent = currentUser.name;
-            
             modalOverlay.classList.add('hidden');
             NotificationSystem.showLocalToast("Perfil Guardado");
             await reloadMessagesUI();
@@ -315,125 +351,131 @@ if (saveProfileBtn) {
     });
 }
 
-// ==========================================================================
-// ENTRADAS Y ENVÍO
-// ==========================================================================
+// CREACIÓN DE GRUPOS DINÁMICOS v4
+const groupModal = document.getElementById('group-create-modal');
+document.getElementById('open-group-modal-btn').onclick = async () => {
+    const checklist = document.getElementById('group-members-checklist');
+    checklist.innerHTML = "";
+    tempGroupAvatarBase64 = "";
+    document.getElementById('group-avatar-preview').textContent = "👥";
+    document.getElementById('group-name-input').value = "";
 
-document.getElementById('go-to-register').addEventListener('click', () => {
-    document.getElementById('login-area').classList.add('hidden');
-    document.getElementById('register-area').classList.remove('hidden');
-});
-document.getElementById('go-to-login').addEventListener('click', () => {
-    document.getElementById('register-area').classList.add('hidden');
-    document.getElementById('login-area').classList.remove('hidden');
-});
-
-document.getElementById('btn-nav-global').addEventListener('click', () => {
-    currentChatTarget = "global";
-    document.getElementById('btn-nav-global').classList.add('active');
-    document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
-    document.getElementById('header-channel-title').textContent = "SayChat // Global";
-    
-    // Limpia la bolita roja del chat global al entrar
-    privateUnreadCounts["global"] = 0;
-    document.getElementById('unread-badge-global').classList.add('hidden');
-    
-    reloadMessagesUI();
-});
-
-document.getElementById('reg-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        imageToConvert64(e.target.files[0], (base64) => {
-            tempRegisterAvatar = base64;
-            const preview = document.getElementById('reg-preview');
-            preview.src = base64; preview.classList.remove('hidden');
-            document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
+    const snapUsers = await get(child(dbRef, 'users'));
+    if (snapUsers.exists()) {
+        const allUsers = snapUsers.val();
+        Object.keys(allUsers).forEach(key => {
+            if (currentUser && "@" + key === currentUser.nickname) return;
+            const row = document.createElement('label');
+            row.classList.add('checklist-row-item');
+            row.innerHTML = `<input type="checkbox" value="${key}"> <span>${allUsers[key].name} (@${key})</span>`;
+            checklist.appendChild(row);
         });
     }
-});
+    groupModal.classList.remove('hidden');
+};
+document.getElementById('close-group-modal-btn').onclick = () => groupModal.classList.add('hidden');
 
-document.getElementById('btn-register-submit').addEventListener('click', async () => {
-    const name = document.getElementById('reg-name').value.trim();
-    const nickname = document.getElementById('reg-nickname').value.trim();
-    const password = document.getElementById('reg-password').value;
+document.getElementById('group-avatar-input').onchange = (e) => {
+    if (e.target.files[0]) {
+        imageToConvert64(e.target.files[0], (b64) => {
+            tempGroupAvatarBase64 = b64;
+            const holder = document.getElementById('group-avatar-preview');
+            holder.innerHTML = `<img src="${b64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+        });
+    }
+};
 
-    if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Completa todos los datos.");
-    if (/[A-Z\s]/.test(nickname)) return alert("Username sin mayúsculas ni espacios.");
+document.getElementById('btn-save-group-submit').onclick = async () => {
+    const gName = document.getElementById('group-name-input').value.trim();
+    if (!gName) return alert("Ponle un nombre al grupo.");
+    if (!tempGroupAvatarBase64) return alert("Sube una foto para el grupo.");
 
-    try {
-        const snapshot = await get(child(dbRef, `users/${nickname}`));
-        if (snapshot.exists()) return alert("Username ocupado.");
+    const marked = [];
+    document.querySelectorAll('#group-members-checklist input:checked').forEach(i => marked.push(i.value));
+    const myKey = currentUser.nickname.replace('@', '');
+    marked.push(myKey); // Se incluye el creador automáticamente
 
-        const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
-        await set(ref(db, `users/${nickname}`), userData);
-        currentUser = userData;
-        localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-        location.reload();
-    } catch (err) { alert("Error."); }
-});
+    const groupKey = "group_" + Date.now();
+    await set(ref(db, `groups/${groupKey}`), { name: gName, avatar: tempGroupAvatarBase64, members: marked });
+    groupModal.classList.add('hidden');
+    NotificationSystem.showLocalToast("Grupo Creado");
+};
 
-document.getElementById('btn-login-submit').addEventListener('click', async () => {
-    const nickname = document.getElementById('login-nickname').value.trim().toLowerCase();
-    const password = document.getElementById('login-password').value;
-
-    try {
-        const snapshot = await get(child(dbRef, `users/${nickname}`));
-        if (!snapshot.exists()) return alert("No existe.");
-        const userData = snapshot.val();
-        if (userData.password !== password) return alert("Incorrecto.");
-
-        currentUser = userData;
-        localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
-        location.reload();
-    } catch (err) { alert("Error."); }
-});
-
+// ==========================================================================
+// ENVÍO DE CONTENIDO (MENSAJES, FOTOS Y VIDEOS EN BASE64)
+// ==========================================================================
 const executeMessageSend = () => {
     const input = document.getElementById('message-input');
     const msg = input.value.trim();
     if (msg && currentUser) {
         const myKey = currentUser.nickname.replace('@', '');
         const payload = { sender: myKey, message: msg, type: 'text', timestamp: Date.now() };
-
         if (currentChatTarget === "global") payload.channel = "global";
+        else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
         else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-        
         push(ref(db, 'messages'), payload);
         input.value = '';
     }
 };
+document.getElementById('btn-send-message').onclick = executeMessageSend;
+document.getElementById('message-input').onkeydown = (e) => { if (e.key === 'Enter') executeMessageSend(); };
 
-document.getElementById('btn-send-message').addEventListener('click', executeMessageSend);
-document.getElementById('message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeMessageSend(); });
-
-// STICKERS
-document.getElementById('btn-toggle-stickers').addEventListener('click', () => {
-    document.getElementById('stickers-panel').classList.toggle('hidden');
-});
-document.getElementById('upload-sticker-input').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        imageToConvert64(e.target.files[0], (base64) => { push(ref(db, 'stickers'), { base64 }); });
+// SUBIR FOTO/VIDEO EN BASE64 v4
+document.getElementById('chat-media-input').onchange = (e) => {
+    if (e.target.files[0] && currentUser) {
+        const file = e.target.files[0];
+        const isVideo = file.type.startsWith('video/');
+        imageToConvert64(file, (b64) => {
+            const myKey = currentUser.nickname.replace('@', '');
+            const payload = { 
+                sender: myKey, 
+                message: isVideo ? "[Video]" : "[Foto]", 
+                type: isVideo ? "video" : "image", 
+                mediaUrl: b64, 
+                timestamp: Date.now() 
+            };
+            if (currentChatTarget === "global") payload.channel = "global";
+            else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
+            else { payload.channel = "private"; payload.receiver = currentChatTarget; }
+            push(ref(db, 'messages'), payload);
+        });
     }
-});
-onChildAdded(ref(db, 'stickers'), (snapshot) => {
-    const base64 = snapshot.val().base64;
+};
+
+document.getElementById('btn-nav-global').onclick = () => {
+    currentChatTarget = "global"; chatTargetType = "global";
+    document.getElementById('btn-nav-global').classList.add('active');
+    document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
+    document.getElementById('header-channel-title').textContent = "SayChat // Global";
+    privateUnreadCounts["global"] = 0;
+    document.getElementById('unread-badge-global').classList.add('hidden');
+    reloadMessagesUI();
+};
+
+// STICKERS LÓGICA
+document.getElementById('btn-toggle-stickers').onclick = () => document.getElementById('stickers-panel').classList.toggle('hidden');
+document.getElementById('upload-sticker-input').onchange = (e) => {
+    if (e.target.files[0]) imageToConvert64(e.target.files[0], (b64) => push(ref(db, 'stickers'), { base64: b64 }));
+};
+onChildAdded(ref(db, 'stickers'), (snap) => {
+    const b64 = snap.val().base64;
     const grid = document.getElementById('stickers-grid');
-    const img = document.createElement('img');
-    img.src = base64; img.classList.add('grid-stk-img');
-    img.addEventListener('click', () => {
+    const img = document.createElement('img'); img.src = b64; img.classList.add('grid-stk-img');
+    img.onclick = () => {
         if (currentUser) {
             const myKey = currentUser.nickname.replace('@', '');
-            const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: base64, timestamp: Date.now() };
+            const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: b64, timestamp: Date.now() };
             if (currentChatTarget === "global") payload.channel = "global";
+            else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
             else { payload.channel = "private"; payload.receiver = currentChatTarget; }
             push(ref(db, 'messages'), payload);
             document.getElementById('stickers-panel').classList.add('hidden');
         }
-    });
+    };
     grid.appendChild(img);
 });
 
-// ESCUCHAR TRANSMISIÓN DE MENSAJES Y PINTAR ALERTAS ROJAS (GLOBAL Y PRIVADO)
+// TRANSMISIÓN CENTRAL DE MENSAJES Y FILTRADO DE CONTADORES ROJOS
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
     allMessagesCache.push(data);
@@ -442,42 +484,66 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
 
     if (isNewMessage) {
-        if (!isMe) { NotificationSystem.trigger(); }
+        if (!isMe) NotificationSystem.trigger();
 
-        // NUEVO: Bolitas rojas activas tanto para el chat global como para salas privadas en segundo plano
+        // Control dinámico de bolitas rojas
         if (data.channel === "global" && currentChatTarget !== "global") {
             privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
-            const globalBadge = document.getElementById('unread-badge-global');
-            if (globalBadge) {
-                globalBadge.textContent = privateUnreadCounts["global"];
-                globalBadge.classList.remove('hidden');
-            }
+            const gb = document.getElementById('unread-badge-global');
+            if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
+        } else if (data.channel === "group" && currentChatTarget !== data.receiver) {
+            const gKey = data.receiver;
+            privateUnreadCounts[gKey] = (privateUnreadCounts[gKey] || 0) + 1;
         } else if (data.channel === "private" && data.sender !== currentChatTarget) {
             const senderKey = data.sender;
             privateUnreadCounts[senderKey] = (privateUnreadCounts[senderKey] || 0) + 1;
-            
-            const badge = document.getElementById(`unread-badge-${senderKey}`);
-            if (badge) {
-                badge.textContent = privateUnreadCounts[senderKey];
-                badge.classList.remove('hidden');
-            }
         }
     }
-
     await reloadMessagesUI();
 });
 
-document.getElementById('logout-btn').addEventListener('click', () => {
-    PresenceSystem.updateState("offline");
-    localStorage.removeItem('chat_session_v5');
-    location.reload();
-});
+// ==========================================================================
+// REGISTRO Y LOGIN CORREGIDO (RESUELVE COMPORTAMIENTO CONGELADO)
+// ==========================================================================
+document.getElementById('btn-register-submit').onclick = async () => {
+    const name = document.getElementById('reg-name').value.trim();
+    const nickname = document.getElementById('reg-nickname').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Rellena todo.");
 
-// EVALUAR SESIÓN
-const savedSession = localStorage.getItem('chat_session_v5');
-if (savedSession) {
-    currentUser = JSON.parse(savedSession);
-    
+    try {
+        const snap = await get(child(dbRef, `users/${nickname}`));
+        if (snap.exists()) return alert("Username ocupado.");
+
+        const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
+        await set(ref(db, `users/${nickname}`), userData);
+        
+        // Alerta de notificación en el chat público global cuando se une alguien nuevo
+        push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
+
+        currentUser = userData; loginTimeMark = Date.now();
+        localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
+        initAppAfterLogin();
+    } catch (err) { alert("Error."); }
+};
+
+document.getElementById('btn-login-submit').onclick = async () => {
+    const nickname = document.getElementById('login-nickname').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const snap = await get(child(dbRef, `users/${nickname}`));
+        if (!snap.exists()) return alert("No existe.");
+        const userData = snap.val();
+        if (userData.password !== password) return alert("Incorrecto.");
+
+        currentUser = userData; loginTimeMark = Date.now();
+        localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
+        initAppAfterLogin();
+    } catch (err) { alert("Error."); }
+};
+
+const initAppAfterLogin = () => {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('current-user-avatar').src = currentUser.avatar;
@@ -486,4 +552,15 @@ if (savedSession) {
     
     PresenceSystem.init();
     PresenceSystem.listenPresence();
-}
+};
+
+document.getElementById('logout-btn').onclick = () => {
+    PresenceSystem.updateState("offline");
+    currentUser = null; allMessagesCache = []; privateUnreadCounts = {};
+    localStorage.removeItem('chat_session_v5');
+    document.getElementById('chat-screen').classList.add('hidden');
+    document.getElementById('auth-screen').classList.remove('hidden');
+};
+
+const savedSession = localStorage.getItem('chat_session_v5');
+if (savedSession) { currentUser = JSON.parse(savedSession); initAppAfterLogin(); }
