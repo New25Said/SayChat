@@ -30,7 +30,7 @@ let tempRegisterAvatar = "";
 let tempModalAvatarBase64 = ""; 
 let tempGroupAvatarBase64 = ""; 
 let loginTimeMark = Date.now(); 
-let currentUsersCachedMap = {}; // Caché global de perfiles para evitar parpadeos relacionales
+let currentUsersCachedMap = {}; 
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -38,7 +38,7 @@ const imageToConvert64 = (file, callback) => {
     reader.readAsDataURL(file);
 };
 
-// COMPRESOR AUTOMÁTICO DE ARCHIVOS PESADOS (SOLUCIONA SUBIDAS DE VIDEO/FOTO GRANDES)
+// COMPRESOR DE MULTIMEDIA OPTIMIZADO PARA PREVENIR EL BUG DE RECARGA EN VIDEOS
 const optimizeAndCompressMedia = (file, callback) => {
     if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -46,7 +46,7 @@ const optimizeAndCompressMedia = (file, callback) => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const max_size = 800; // Limitar resolución max para fluidez en base64
+                const max_size = 800; 
                 let width = img.width; let height = img.height;
                 if (width > height) {
                     if (width > max_size) { height *= max_size / width; width = max_size; }
@@ -56,13 +56,12 @@ const optimizeAndCompressMedia = (file, callback) => {
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                callback(canvas.toDataURL('image/jpeg', 0.7)); // Compresión limpia al 70%
+                callback(canvas.toDataURL('image/jpeg', 0.7)); 
             };
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
     } else if (file.type.startsWith('video/')) {
-        // Para videos grandes, limitamos la lectura de fragmentos Base64 evitando desbordar la memoria de Firebase
         const reader = new FileReader();
         reader.onloadend = () => {
             callback(reader.result); 
@@ -106,7 +105,7 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// PRESENCIA Y LISTAS SIN INTERRUPCIÓN VISUAL
+// PRESENCIA Y LISTAS
 // ==========================================================================
 const PresenceSystem = {
     updateState(status) {
@@ -207,10 +206,8 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// RENDERIZADO OPTIMIZADO: ENTRADAS UNITARIAS EN LUGAR DE BUCLES (CERO LATENCIA)
+// INYECCIÓN DE MENSAJES UNITARIOS EN TIEMPO REAL (CERO LATENCIA)
 // ==========================================================================
-let allMessagesCache = [];
-
 const renderSingleMessageAppend = (msgData) => {
     let shouldRender = false;
     if (currentChatTarget === "global" && msgData.channel === "global") shouldRender = true;
@@ -239,7 +236,6 @@ const renderSingleMessageAppend = (msgData) => {
     } else if (msgData.type === 'image') {
         contentHTML = `<img src="${msgData.mediaUrl}" class="msg-media-expanded previewable-media-click" alt="Foto">`;
     } else if (msgData.type === 'video') {
-        // CORRECCIÓN DEL BUG DE RECARGA: Añadidos los atributos 'playsinline' y 'muted' para asegurar carga del Base64 sin colgarse
         contentHTML = `<video src="${msgData.mediaUrl}" controls playsinline muted class="msg-media-expanded previewable-media-click-video"></video>`;
     }
 
@@ -261,13 +257,12 @@ const reloadMessagesUI = () => {
     allMessagesCache.forEach(msg => renderSingleMessageAppend(msg));
 };
 
-// AGREGADO: VISUALIZACIÓN EN GRANDE PARA FOTOS, VIDEOS Y STICKERS
 const attachUniversalMediaPreviewEvents = () => {
     document.querySelectorAll('.previewable-media-click').forEach(element => {
         element.onclick = (e) => {
             e.stopPropagation();
             const container = document.getElementById('media-viewer-container');
-            container.innerHTML = `<img src="${element.src}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;">`;
+            container.innerHTML = `<img src="${element.src}">`;
             document.getElementById('sticker-viewer-overlay').classList.remove('hidden');
         };
     });
@@ -275,7 +270,7 @@ const attachUniversalMediaPreviewEvents = () => {
         element.onclick = (e) => {
             e.stopPropagation();
             const container = document.getElementById('media-viewer-container');
-            container.innerHTML = `<video src="${element.src}" controls autoplay style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;"></video>`;
+            container.innerHTML = `<video src="${element.src}" controls autoplay playsinline></video>`;
             document.getElementById('sticker-viewer-overlay').classList.remove('hidden');
         };
     });
@@ -359,8 +354,19 @@ document.getElementById('btn-save-group-submit').onclick = async () => {
 };
 
 // ==========================================================================
-// ENVÍO Y CONFIGURACIÓN MULTIMEDIA OPTIMIZADA
+// ENVÍO MULTIMEDIA Y ESCUCHADORES ORIGINALES LOGIN/REGISTRO
 // ==========================================================================
+
+/* REINCORPORACIÓN DE INTERRUPTORES DE VISTA ORIGINALES */
+document.getElementById('go-to-register').addEventListener('click', () => {
+    document.getElementById('login-area').classList.add('hidden');
+    document.getElementById('register-area').classList.remove('hidden');
+});
+document.getElementById('go-to-login').addEventListener('click', () => {
+    document.getElementById('register-area').classList.add('hidden');
+    document.getElementById('login-area').classList.remove('hidden');
+});
+
 const executeMessageSend = () => {
     const input = document.getElementById('message-input'); const msg = input.value.trim();
     if (msg && currentUser) {
@@ -378,7 +384,7 @@ document.getElementById('message-input').onkeydown = (e) => { if (e.key === 'Ent
 document.getElementById('chat-media-input').onchange = (e) => {
     if (e.target.files[0] && currentUser) {
         const file = e.target.files[0]; const isVideo = file.type.startsWith('video/');
-        NotificationSystem.showLocalToast(isVideo ? "Procesando video pesado..." : "Subiendo imagen...");
+        NotificationSystem.showLocalToast(isVideo ? "Procesando video..." : "Subiendo imagen...");
         
         optimizeAndCompressMedia(file, (b64) => {
             const myKey = currentUser.nickname.replace('@', '');
@@ -418,7 +424,7 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
     grid.appendChild(img);
 });
 
-// TRANSMISIÓN CENTRAL DE MENSAJES FLUIDA (EVITA CONGELAMIENTO)
+// TRANSMISIÓN CENTRAL DE MENSAJES FLUIDA
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
     allMessagesCache.push(data);
@@ -434,12 +440,21 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
         } else if (data.channel === "group" && currentChatTarget !== data.receiver) { privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; }
         else if (data.channel === "private" && data.sender !== currentChatTarget) { privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; }
     }
-    
-    // Inyección instantánea y unitaria para omitir recargas pesadas del DOM
     renderSingleMessageAppend(data);
 });
 
 // ACCESO
+document.getElementById('reg-avatar').addEventListener('change', (e) => {
+    if (e.target.files[0]) {
+        imageToConvert64(e.target.files[0], (base64) => {
+            tempRegisterAvatar = base64;
+            const preview = document.getElementById('reg-preview');
+            preview.src = base64; preview.classList.remove('hidden');
+            document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
+        });
+    }
+});
+
 document.getElementById('btn-register-submit').onclick = async () => {
     const name = document.getElementById('reg-name').value.trim(); const nickname = document.getElementById('reg-nickname').value.trim(); const password = document.getElementById('reg-password').value;
     if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Rellena todo.");
