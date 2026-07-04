@@ -49,7 +49,8 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 
 .btn-whatsapp { width: 100%; padding: 13px; background: var(--accent); color: #fff; border: none; font-weight: 600; cursor: pointer; border-radius: 10px; font-size: 14px; transition: var(--ease-normal); box-shadow: 0 4px 12px var(--accent-glow); }
 .btn-whatsapp:hover { transform: translateY(-1px); box-shadow: 0 6px 16px var(--accent-glow); opacity: 0.95; }
-.switch-text { margin-top: 20px; font-size: 11.5px; color: var(--text-muted); text-align: center; span { color: var(--accent); cursor: pointer; font-weight: 600; } }
+.switch-text { margin-top: 20px; font-size: 11.5px; color: var(--text-muted); text-align: center; }
+.switch-text span { color: var(--accent); cursor: pointer; font-weight: 600; }
 .whatsapp-file-zone { display: flex; align-items: center; justify-content: space-between; background: var(--bg-input); padding: 10px 14px; margin-bottom: 18px; border-radius: 10px; }
 .file-btn { font-size: 11px; font-weight: 600; color: var(--text-main); cursor: pointer; padding: 6px 12px; border: 1px solid var(--border-clean); text-align: center; border-radius: 6px; background: var(--bg-sidebar); }
 
@@ -81,7 +82,7 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .global-avatar-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--bg-input); display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .contact-list-row.active .global-avatar-icon { color: var(--accent); }
 
-/* CONTANCTOS BOLITAS GRANDES */
+/* CONTACTOS BOLITAS GRANDES */
 .status-indicator-dot {
     position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; 
     border-radius: 50% !important; background: #71717a; border: 2.5px solid var(--bg-sidebar); z-index: 5;
@@ -118,7 +119,6 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .msg-sticker { max-width: 95px; max-height: 95px; display: block; margin-top: 4px; border-radius: 6px; cursor: pointer; transition: transform 0.1s ease; }
 .msg-sticker:hover { transform: scale(1.04); }
 
-/* IMÁGENES Y VIDEOS EXPANDIBLES */
 .msg-media-expanded { max-width: 280px; max-height: 200px; object-fit: cover; border-radius: 10px; display: block; margin-top: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: transform 0.1s ease; }
 .msg-media-expanded:hover { transform: scale(1.02); }
 
@@ -132,35 +132,16 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 .stickers-grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 130px; overflow-y: auto; }
 .grid-stk-img { width: 100%; height: 45px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-clean); cursor: pointer; }
 
-/* ==========================================================================
-   FORMULARIO INFERIOR CORREGIDO: BAJADO Y CENTRADO EXACTO (IMAGE_590DA5.PNG)
-   ========================================================================== */
+/* FORMULARIO INFERIOR ALINEADO (CONFORME A IMAGE_590DA5.PNG) */
 #chat-form-mock { 
-    display: flex; 
-    padding: 0 20px; 
-    background: var(--bg-header); 
-    gap: 14px; 
-    align-items: center; 
-    justify-content: center;
-    height: 68px; /* Altura sutilmente incrementada para mejor margen */
-    box-sizing: border-box; 
-    margin: 0 !important;
-    border-top: 1px solid var(--border-clean);
+    display: flex; padding: 0 20px; background: var(--bg-header); gap: 14px; align-items: center; justify-content: center;
+    height: 68px; box-sizing: border-box; margin: 0 !important; border-top: 1px solid var(--border-clean);
 }
 .btn-stk-trigger { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; display: flex; align-items: center; transition: var(--ease-normal); border-radius: 50%; }
 .btn-stk-trigger:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.04); }
 
 #chat-form-mock input { 
-    flex: 1; 
-    padding: 0 16px; 
-    background: var(--bg-input); 
-    border: none; 
-    color: var(--text-main); 
-    outline: none; 
-    border-radius: 10px; 
-    font-size: 14px; 
-    height: 40px; 
-    margin-top: 2px; /* Efecto sutil para bajar el input alineado a los iconos */
+    flex: 1; padding: 0 16px; background: var(--bg-input); border: none; color: var(--text-main); outline: none; border-radius: 10px; font-size: 14px; height: 40px; margin-top: 2px;
 }
 #chat-form-mock input:focus { background: var(--bg-sidebar); }
 
@@ -171,7 +152,18 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
 }
 .btn-send-whatsapp:hover { opacity: 0.9; }
 
-/* MODALES */
+/* MODALES CORREGIDOS: CONTROL MEDIANO PARA LAS VISTAS PREVIAS */
+#media-viewer-container img, 
+#media-viewer-container video {
+    max-width: 140px !important;   /* CORRECCIÓN: Tamaño mediano controlado para la vista previa */
+    max-height: 140px !important;  /* CORRECCIÓN: Tamaño mediano controlado para la vista previa */
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    background: #111b21;
+    border: 1px solid var(--border-clean);
+}
+
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(4px); }
 .modal-card { background: var(--bg-sidebar); border: 1px solid var(--border-clean); width: 90%; max-width: 350px; border-radius: 16px; box-shadow: 0 25px 50px rgba(0,0,0,0.7); overflow: hidden; }
 .modal-header { background: var(--bg-header); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-clean); }
