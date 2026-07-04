@@ -38,7 +38,7 @@ const imageToConvert64 = (file, callback) => {
     reader.readAsDataURL(file);
 };
 
-// COMPRESOR DE MULTIMEDIA OPTIMIZADO PARA PREVENIR EL BUG DE RECARGA EN VIDEOS
+// COMPRESOR MULTIMEDIA
 const optimizeAndCompressMedia = (file, callback) => {
     if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -206,7 +206,7 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// INYECCIÓN DE MENSAJES UNITARIOS EN TIEMPO REAL (CERO LATENCIA)
+// INYECCIÓN DE MENSAJES UNITARIOS EN TIEMPO REAL
 // ==========================================================================
 const renderSingleMessageAppend = (msgData) => {
     let shouldRender = false;
@@ -354,10 +354,8 @@ document.getElementById('btn-save-group-submit').onclick = async () => {
 };
 
 // ==========================================================================
-// ENVÍO MULTIMEDIA Y ESCUCHADORES ORIGINALES LOGIN/REGISTRO
+// REGISTRO Y LOGIN (ESCUDO ANTIBUGS REPARADO)
 // ==========================================================================
-
-/* REINCORPORACIÓN DE INTERRUPTORES DE VISTA ORIGINALES */
 document.getElementById('go-to-register').addEventListener('click', () => {
     document.getElementById('login-area').classList.add('hidden');
     document.getElementById('register-area').classList.remove('hidden');
@@ -365,6 +363,17 @@ document.getElementById('go-to-register').addEventListener('click', () => {
 document.getElementById('go-to-login').addEventListener('click', () => {
     document.getElementById('register-area').classList.add('hidden');
     document.getElementById('login-area').classList.remove('hidden');
+});
+
+document.getElementById('reg-avatar').addEventListener('change', (e) => {
+    if (e.target.files[0]) {
+        imageToConvert64(e.target.files[0], (base64) => {
+            tempRegisterAvatar = base64;
+            const preview = document.getElementById('reg-preview');
+            preview.src = base64; preview.classList.remove('hidden');
+            document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
+        });
+    }
 });
 
 const executeMessageSend = () => {
@@ -424,7 +433,7 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
     grid.appendChild(img);
 });
 
-// TRANSMISIÓN CENTRAL DE MENSAJES FLUIDA
+// ESCUCHA ASÍNCRONA CORREGIDA (SOLUCIONA SÍNCO DE MENSAJES AL INICIAR)
 onChildAdded(ref(db, 'messages'), async (snapshot) => {
     const data = snapshot.val();
     allMessagesCache.push(data);
@@ -440,19 +449,13 @@ onChildAdded(ref(db, 'messages'), async (snapshot) => {
         } else if (data.channel === "group" && currentChatTarget !== data.receiver) { privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; }
         else if (data.channel === "private" && data.sender !== currentChatTarget) { privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; }
     }
-    renderSingleMessageAppend(data);
-});
-
-// ACCESO
-document.getElementById('reg-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        imageToConvert64(e.target.files[0], (base64) => {
-            tempRegisterAvatar = base64;
-            const preview = document.getElementById('reg-preview');
-            preview.src = base64; preview.classList.remove('hidden');
-            document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
-        });
+    
+    // Si el mapa de usuarios local todavía está vacío, forzar una lectura rápida para no dejar la pantalla en blanco
+    if (Object.keys(currentUsersCachedMap).length === 0) {
+        const snapUsers = await get(child(dbRef, 'users'));
+        currentUsersCachedMap = snapUsers.val() || {};
     }
+    renderSingleMessageAppend(data);
 });
 
 document.getElementById('btn-register-submit').onclick = async () => {
@@ -476,9 +479,14 @@ document.getElementById('btn-login-submit').onclick = async () => {
     } catch (err) { alert("Error."); }
 };
 
-const initAppAfterLogin = () => {
+const initAppAfterLogin = async () => {
     document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('current-user-avatar').src = currentUser.avatar; document.getElementById('current-user-name').textContent = currentUser.name; document.getElementById('current-user-nickname').textContent = currentUser.nickname;
+    
+    // Forzar llenado inmediato de la caché antes de arrancar los oyentes
+    const snapUsers = await get(child(dbRef, 'users'));
+    currentUsersCachedMap = snapUsers.val() || {};
+    
     PresenceSystem.init(); PresenceSystem.listenPresence();
 };
 
