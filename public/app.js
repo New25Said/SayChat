@@ -31,6 +31,7 @@ let tempModalAvatarBase64 = "";
 let tempGroupAvatarBase64 = ""; 
 let loginTimeMark = Date.now(); 
 let currentUsersCachedMap = {}; 
+let isMessageListenerAttached = false; // Candado para prevenir duplicación de escuchas
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -63,9 +64,7 @@ const optimizeAndCompressMedia = (file, callback) => {
         reader.readAsDataURL(file);
     } else if (file.type.startsWith('video/')) {
         const reader = new FileReader();
-        reader.onloadend = () => {
-            callback(reader.result); 
-        };
+        reader.onloadend = () => { callback(reader.result); };
         reader.readAsDataURL(file);
     }
 };
@@ -354,7 +353,7 @@ document.getElementById('btn-save-group-submit').onclick = async () => {
 };
 
 // ==========================================================================
-// REGISTRO Y LOGIN (ESCUDO ANTIBUGS REPARADO)
+// REGISTRO, LOGIN Y ACTIVACIÓN SECUENCIAL DE OYENTES
 // ==========================================================================
 document.getElementById('go-to-register').addEventListener('click', () => {
     document.getElementById('login-area').classList.add('hidden');
@@ -433,30 +432,29 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
     grid.appendChild(img);
 });
 
-// ESCUCHA ASÍNCRONA CORREGIDA (SOLUCIONA SÍNCO DE MENSAJES AL INICIAR)
-onChildAdded(ref(db, 'messages'), async (snapshot) => {
-    const data = snapshot.val();
-    allMessagesCache.push(data);
+// FUNCIÓN SÍNCRONA INTERNA DE ESCUCHA DE MENSAJES (MUEVE LOS OYENTES DETRÁS DE LA CACHÉ)
+const initMessagesLiveStreamListener = () => {
+    if (isMessageListenerAttached) return; // Asegurar un único oyente activo
+    isMessageListenerAttached = true;
 
-    const isNewMessage = data.timestamp > loginTimeMark;
-    const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
+    onChildAdded(ref(db, 'messages'), (snapshot) => {
+        const data = snapshot.val();
+        allMessagesCache.push(data);
 
-    if (isNewMessage) {
-        if (!isMe) NotificationSystem.trigger();
-        if (data.channel === "global" && currentChatTarget !== "global") {
-            privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
-            const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
-        } else if (data.channel === "group" && currentChatTarget !== data.receiver) { privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; }
-        else if (data.channel === "private" && data.sender !== currentChatTarget) { privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; }
-    }
-    
-    // Si el mapa de usuarios local todavía está vacío, forzar una lectura rápida para no dejar la pantalla en blanco
-    if (Object.keys(currentUsersCachedMap).length === 0) {
-        const snapUsers = await get(child(dbRef, 'users'));
-        currentUsersCachedMap = snapUsers.val() || {};
-    }
-    renderSingleMessageAppend(data);
-});
+        const isNewMessage = data.timestamp > loginTimeMark;
+        const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
+
+        if (isNewMessage) {
+            if (!isMe) NotificationSystem.trigger();
+            if (data.channel === "global" && currentChatTarget !== "global") {
+                privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
+                const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
+            } else if (data.channel === "group" && currentChatTarget !== data.receiver) { privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; }
+            else if (data.channel === "private" && data.sender !== currentChatTarget) { privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; }
+        }
+        renderSingleMessageAppend(data);
+    });
+};
 
 document.getElementById('btn-register-submit').onclick = async () => {
     const name = document.getElementById('reg-name').value.trim(); const nickname = document.getElementById('reg-nickname').value.trim(); const password = document.getElementById('reg-password').value;
@@ -466,7 +464,7 @@ document.getElementById('btn-register-submit').onclick = async () => {
         const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
         await set(ref(db, `users/${nickname}`), userData);
         push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
-        currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); initAppAfterLogin();
+        currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
     } catch (err) { alert("Error."); }
 };
 
@@ -475,7 +473,7 @@ document.getElementById('btn-login-submit').onclick = async () => {
     try {
         const snap = await get(child(dbRef, `users/${nickname}`)); if (!snap.exists()) return alert("No existe.");
         const userData = snap.val(); if (userData.password !== password) return alert("Incorrecto.");
-        currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); initAppAfterLogin();
+        currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
     } catch (err) { alert("Error."); }
 };
 
@@ -483,15 +481,18 @@ const initAppAfterLogin = async () => {
     document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('current-user-avatar').src = currentUser.avatar; document.getElementById('current-user-name').textContent = currentUser.name; document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
-    // Forzar llenado inmediato de la caché antes de arrancar los oyentes
+    // 1. DESCARGAR LA CONFIGURACIÓN GLOBAL DE USUARIOS PRIMERO (PASO CRÍTICO MANDATORIO)
     const snapUsers = await get(child(dbRef, 'users'));
     currentUsersCachedMap = snapUsers.val() || {};
+    
+    // 2. UNA VEZ CARGADA LA CACHÉ, ENTRAR A LA ESCUCHA DE LOS MENSAJES HISTÓRICOS Y EN VIVO
+    initMessagesLiveStreamListener();
     
     PresenceSystem.init(); PresenceSystem.listenPresence();
 };
 
 document.getElementById('logout-btn').onclick = () => {
-    PresenceSystem.updateState("offline"); currentUser = null; allMessagesCache = []; privateUnreadCounts = {};
+    PresenceSystem.updateState("offline"); currentUser = null; allMessagesCache = []; privateUnreadCounts = {}; isMessageListenerAttached = false;
     localStorage.removeItem('chat_session_v5'); document.getElementById('chat-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden');
 };
 
