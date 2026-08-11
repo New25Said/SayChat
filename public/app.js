@@ -24,6 +24,7 @@ let currentChatTarget = "global";
 let chatTargetType = "global"; 
 let unreadCountGlobal = 0;
 let privateUnreadCounts = {}; 
+let allMessagesCache = []; // <-- VARIABLE AGREGADA (Corrección del congelamiento)
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
@@ -31,7 +32,7 @@ let tempModalAvatarBase64 = "";
 let tempGroupAvatarBase64 = ""; 
 let loginTimeMark = Date.now(); 
 let currentUsersCachedMap = {}; 
-let isMessageListenerAttached = false; // Candado para prevenir duplicación de escuchas
+let isMessageListenerAttached = false;
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -96,8 +97,10 @@ const NotificationSystem = {
     restoreFavicon() { if (originalFavicon) { const link = document.querySelector("link[rel*='icon']"); if (link) link.href = originalFavicon; } },
     showLocalToast(text) {
         const toast = document.getElementById('toast-notification');
-        toast.textContent = text; toast.classList.remove('hidden');
-        setTimeout(() => toast.classList.add('hidden'), 2000);
+        if (toast) {
+            toast.textContent = text; toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2000);
+        }
     }
 };
 
@@ -156,7 +159,9 @@ const PresenceSystem = {
                         document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                         existingRow.classList.add('active');
                         document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
-                        privateUnreadCounts[gKey] = 0; document.getElementById(`unread-badge-${gKey}`).classList.add('hidden');
+                        privateUnreadCounts[gKey] = 0; 
+                        const badge = document.getElementById(`unread-badge-${gKey}`);
+                        if (badge) badge.classList.add('hidden');
                         reloadMessagesUI();
                     });
                     listContainer.appendChild(existingRow);
@@ -189,7 +194,9 @@ const PresenceSystem = {
                     document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                     existingRow.classList.add('active');
                     document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
-                    privateUnreadCounts[key] = 0; document.getElementById(`unread-badge-${key}`).classList.add('hidden');
+                    privateUnreadCounts[key] = 0; 
+                    const badge = document.getElementById(`unread-badge-${key}`);
+                    if (badge) badge.classList.add('hidden');
                     reloadMessagesUI();
                 });
                 listContainer.appendChild(existingRow);
@@ -218,6 +225,8 @@ const renderSingleMessageAppend = (msgData) => {
     if (!shouldRender) return;
 
     const box = document.getElementById('chat-box');
+    if (!box) return;
+
     if (msgData.type === 'system') {
         const sysDiv = document.createElement('div'); sysDiv.classList.add('msg-system-line'); sysDiv.textContent = msgData.message;
         box.appendChild(sysDiv); box.scrollTop = box.scrollHeight; return;
@@ -252,8 +261,11 @@ const renderSingleMessageAppend = (msgData) => {
 };
 
 const reloadMessagesUI = () => {
-    document.getElementById('chat-box').innerHTML = "";
-    allMessagesCache.forEach(msg => renderSingleMessageAppend(msg));
+    const box = document.getElementById('chat-box');
+    if (box) {
+        box.innerHTML = "";
+        allMessagesCache.forEach(msg => renderSingleMessageAppend(msg));
+    }
 };
 
 const attachUniversalMediaPreviewEvents = () => {
@@ -261,24 +273,32 @@ const attachUniversalMediaPreviewEvents = () => {
         element.onclick = (e) => {
             e.stopPropagation();
             const container = document.getElementById('media-viewer-container');
-            container.innerHTML = `<img src="${element.src}">`;
-            document.getElementById('sticker-viewer-overlay').classList.remove('hidden');
+            if (container) {
+                container.innerHTML = `<img src="${element.src}">`;
+                document.getElementById('sticker-viewer-overlay').classList.remove('hidden');
+            }
         };
     });
     document.querySelectorAll('.previewable-media-click-video').forEach(element => {
         element.onclick = (e) => {
             e.stopPropagation();
             const container = document.getElementById('media-viewer-container');
-            container.innerHTML = `<video src="${element.src}" controls autoplay playsinline></video>`;
-            document.getElementById('sticker-viewer-overlay').classList.remove('hidden');
+            if (container) {
+                container.innerHTML = `<video src="${element.src}" controls autoplay playsinline></video>`;
+                document.getElementById('sticker-viewer-overlay').classList.remove('hidden');
+            }
         };
     });
 };
 
-document.getElementById('sticker-viewer-overlay').onclick = () => {
-    document.getElementById('media-viewer-container').innerHTML = "";
-    document.getElementById('sticker-viewer-overlay').classList.add('hidden');
-};
+const stickerOverlay = document.getElementById('sticker-viewer-overlay');
+if (stickerOverlay) {
+    stickerOverlay.onclick = () => {
+        const container = document.getElementById('media-viewer-container');
+        if (container) container.innerHTML = "";
+        stickerOverlay.classList.add('hidden');
+    };
+}
 
 // ==========================================================================
 // MODALES CENTRALES
@@ -300,9 +320,12 @@ if (openModalBtn) {
 }
 if (closeModalBtn) closeModalBtn.addEventListener('click', () => modalOverlay.classList.add('hidden'));
 
-document.getElementById('edit-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0]) optimizeAndCompressMedia(e.target.files[0], (b64) => { tempModalAvatarBase64 = b64; modalAvatarImg.src = b64; });
-});
+const editAvatarInput = document.getElementById('edit-avatar');
+if (editAvatarInput) {
+    editAvatarInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) optimizeAndCompressMedia(e.target.files[0], (b64) => { tempModalAvatarBase64 = b64; modalAvatarImg.src = b64; });
+    });
+}
 
 if (saveProfileBtn) {
     saveProfileBtn.addEventListener('click', async () => {
@@ -323,57 +346,78 @@ if (saveProfileBtn) {
 }
 
 const groupModal = document.getElementById('group-create-modal');
-document.getElementById('open-group-modal-btn').onclick = async () => {
-    const checklist = document.getElementById('group-members-checklist'); checklist.innerHTML = "";
-    tempGroupAvatarBase64 = ""; document.getElementById('group-avatar-preview').textContent = "👥"; document.getElementById('group-name-input').value = "";
+const openGroupBtn = document.getElementById('open-group-modal-btn');
+if (openGroupBtn) {
+    openGroupBtn.onclick = async () => {
+        const checklist = document.getElementById('group-members-checklist'); checklist.innerHTML = "";
+        tempGroupAvatarBase64 = ""; document.getElementById('group-avatar-preview').textContent = "👥"; document.getElementById('group-name-input').value = "";
 
-    Object.keys(currentUsersCachedMap).forEach(key => {
-        if (currentUser && "@" + key === currentUser.nickname) return;
-        const row = document.createElement('label'); row.classList.add('checklist-row-item');
-        row.innerHTML = `<input type="checkbox" value="${key}"> <span>${currentUsersCachedMap[key].name} (@${key})</span>`;
-        checklist.appendChild(row);
-    });
-    groupModal.classList.remove('hidden');
-};
-document.getElementById('close-group-modal-btn').onclick = () => groupModal.classList.add('hidden');
-
-document.getElementById('group-avatar-input').onchange = (e) => {
-    if (e.target.files[0]) { imageToConvert64(e.target.files[0], (b64) => { tempGroupAvatarBase64 = b64; document.getElementById('group-avatar-preview').innerHTML = `<img src="${b64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`; }); }
-};
-
-document.getElementById('btn-save-group-submit').onclick = async () => {
-    const gName = document.getElementById('group-name-input').value.trim();
-    if (!gName) return alert("Ponle un nombre al grupo.");
-    if (!tempGroupAvatarBase64) return alert("Sube una foto para el grupo.");
-    const marked = []; document.querySelectorAll('#group-members-checklist input:checked').forEach(i => marked.push(i.value));
-    const myKey = currentUser.nickname.replace('@', ''); marked.push(myKey);
-    const groupKey = "group_" + Date.now();
-    await set(ref(db, `groups/${groupKey}`), { name: gName, avatar: tempGroupAvatarBase64, members: marked });
-    groupModal.classList.add('hidden'); NotificationSystem.showLocalToast("Grupo Creado");
-};
-
-// ==========================================================================
-// REGISTRO, LOGIN Y ACTIVACIÓN SECUENCIAL DE OYENTES
-// ==========================================================================
-document.getElementById('go-to-register').addEventListener('click', () => {
-    document.getElementById('login-area').classList.add('hidden');
-    document.getElementById('register-area').classList.remove('hidden');
-});
-document.getElementById('go-to-login').addEventListener('click', () => {
-    document.getElementById('register-area').classList.add('hidden');
-    document.getElementById('login-area').classList.remove('hidden');
-});
-
-document.getElementById('reg-avatar').addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        imageToConvert64(e.target.files[0], (base64) => {
-            tempRegisterAvatar = base64;
-            const preview = document.getElementById('reg-preview');
-            preview.src = base64; preview.classList.remove('hidden');
-            document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
+        Object.keys(currentUsersCachedMap).forEach(key => {
+            if (currentUser && "@" + key === currentUser.nickname) return;
+            const row = document.createElement('label'); row.classList.add('checklist-row-item');
+            row.innerHTML = `<input type="checkbox" value="${key}"> <span>${currentUsersCachedMap[key].name} (@${key})</span>`;
+            checklist.appendChild(row);
         });
-    }
-});
+        groupModal.classList.remove('hidden');
+    };
+}
+
+const closeGroupBtn = document.getElementById('close-group-modal-btn');
+if (closeGroupBtn) closeGroupBtn.onclick = () => groupModal.classList.add('hidden');
+
+const groupAvatarInput = document.getElementById('group-avatar-input');
+if (groupAvatarInput) {
+    groupAvatarInput.onchange = (e) => {
+        if (e.target.files[0]) { imageToConvert64(e.target.files[0], (b64) => { tempGroupAvatarBase64 = b64; document.getElementById('group-avatar-preview').innerHTML = `<img src="${b64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`; }); }
+    };
+}
+
+const saveGroupBtn = document.getElementById('btn-save-group-submit');
+if (saveGroupBtn) {
+    saveGroupBtn.onclick = async () => {
+        const gName = document.getElementById('group-name-input').value.trim();
+        if (!gName) return alert("Ponle un nombre al grupo.");
+        if (!tempGroupAvatarBase64) return alert("Sube una foto para el grupo.");
+        const marked = []; document.querySelectorAll('#group-members-checklist input:checked').forEach(i => marked.push(i.value));
+        const myKey = currentUser.nickname.replace('@', ''); marked.push(myKey);
+        const groupKey = "group_" + Date.now();
+        await set(ref(db, `groups/${groupKey}`), { name: gName, avatar: tempGroupAvatarBase64, members: marked });
+        groupModal.classList.add('hidden'); NotificationSystem.showLocalToast("Grupo Creado");
+    };
+}
+
+// ==========================================================================
+// REGISTRO, LOGIN Y NAVEGACIÓN
+// ==========================================================================
+const goToRegister = document.getElementById('go-to-register');
+if (goToRegister) {
+    goToRegister.addEventListener('click', () => {
+        document.getElementById('login-area').classList.add('hidden');
+        document.getElementById('register-area').classList.remove('hidden');
+    });
+}
+
+const goToLogin = document.getElementById('go-to-login');
+if (goToLogin) {
+    goToLogin.addEventListener('click', () => {
+        document.getElementById('register-area').classList.add('hidden');
+        document.getElementById('login-area').classList.remove('hidden');
+    });
+}
+
+const regAvatar = document.getElementById('reg-avatar');
+if (regAvatar) {
+    regAvatar.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            imageToConvert64(e.target.files[0], (base64) => {
+                tempRegisterAvatar = base64;
+                const preview = document.getElementById('reg-preview');
+                preview.src = base64; preview.classList.remove('hidden');
+                document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
+            });
+        }
+    });
+}
 
 const executeMessageSend = () => {
     const input = document.getElementById('message-input'); const msg = input.value.trim();
@@ -386,55 +430,73 @@ const executeMessageSend = () => {
         push(ref(db, 'messages'), payload); input.value = '';
     }
 };
-document.getElementById('btn-send-message').onclick = executeMessageSend;
-document.getElementById('message-input').onkeydown = (e) => { if (e.key === 'Enter') executeMessageSend(); };
 
-document.getElementById('chat-media-input').onchange = (e) => {
-    if (e.target.files[0] && currentUser) {
-        const file = e.target.files[0]; const isVideo = file.type.startsWith('video/');
-        NotificationSystem.showLocalToast(isVideo ? "Procesando video..." : "Subiendo imagen...");
-        
-        optimizeAndCompressMedia(file, (b64) => {
-            const myKey = currentUser.nickname.replace('@', '');
-            const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "image", mediaUrl: b64, timestamp: Date.now() };
-            if (currentChatTarget === "global") payload.channel = "global";
-            else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
-            else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-            push(ref(db, 'messages'), payload);
-        });
-    }
-};
+const sendMsgBtn = document.getElementById('btn-send-message');
+if (sendMsgBtn) sendMsgBtn.onclick = executeMessageSend;
 
-document.getElementById('btn-nav-global').onclick = () => {
-    currentChatTarget = "global"; chatTargetType = "global";
-    document.getElementById('btn-nav-global').classList.add('active');
-    document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
-    document.getElementById('header-channel-title').textContent = "SayChat // Global";
-    privateUnreadCounts["global"] = 0; document.getElementById('unread-badge-global').classList.add('hidden');
-    reloadMessagesUI();
-};
+const msgInput = document.getElementById('message-input');
+if (msgInput) msgInput.onkeydown = (e) => { if (e.key === 'Enter') executeMessageSend(); };
 
-document.getElementById('btn-toggle-stickers').onclick = () => document.getElementById('stickers-panel').classList.toggle('hidden');
-document.getElementById('upload-sticker-input').onchange = (e) => { if (e.target.files[0]) imageToConvert64(e.target.files[0], (b64) => push(ref(db, 'stickers'), { base64: b64 })); };
-
-onChildAdded(ref(db, 'stickers'), (snap) => {
-    const b64 = snap.val().base64; const grid = document.getElementById('stickers-grid'); const img = document.createElement('img'); img.src = b64; img.classList.add('grid-stk-img');
-    img.onclick = () => {
-        if (currentUser) {
-            const myKey = currentUser.nickname.replace('@', '');
-            const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: b64, timestamp: Date.now() };
-            if (currentChatTarget === "global") payload.channel = "global";
-            else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
-            else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-            push(ref(db, 'messages'), payload); document.getElementById('stickers-panel').classList.add('hidden');
+const chatMediaInput = document.getElementById('chat-media-input');
+if (chatMediaInput) {
+    chatMediaInput.onchange = (e) => {
+        if (e.target.files[0] && currentUser) {
+            const file = e.target.files[0]; const isVideo = file.type.startsWith('video/');
+            NotificationSystem.showLocalToast(isVideo ? "Procesando video..." : "Subiendo imagen...");
+            
+            optimizeAndCompressMedia(file, (b64) => {
+                const myKey = currentUser.nickname.replace('@', '');
+                const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "image", mediaUrl: b64, timestamp: Date.now() };
+                if (currentChatTarget === "global") payload.channel = "global";
+                else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
+                else { payload.channel = "private"; payload.receiver = currentChatTarget; }
+                push(ref(db, 'messages'), payload);
+            });
         }
     };
-    grid.appendChild(img);
+}
+
+const navGlobalBtn = document.getElementById('btn-nav-global');
+if (navGlobalBtn) {
+    navGlobalBtn.onclick = () => {
+        currentChatTarget = "global"; chatTargetType = "global";
+        navGlobalBtn.classList.add('active');
+        document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
+        document.getElementById('header-channel-title').textContent = "SayChat // Global";
+        privateUnreadCounts["global"] = 0; 
+        const badge = document.getElementById('unread-badge-global');
+        if (badge) badge.classList.add('hidden');
+        reloadMessagesUI();
+    };
+}
+
+const toggleStickersBtn = document.getElementById('btn-toggle-stickers');
+if (toggleStickersBtn) toggleStickersBtn.onclick = () => document.getElementById('stickers-panel').classList.toggle('hidden');
+
+const uploadStickerInput = document.getElementById('upload-sticker-input');
+if (uploadStickerInput) uploadStickerInput.onchange = (e) => { if (e.target.files[0]) imageToConvert64(e.target.files[0], (b64) => push(ref(db, 'stickers'), { base64: b64 })); };
+
+onChildAdded(ref(db, 'stickers'), (snap) => {
+    const b64 = snap.val().base64; const grid = document.getElementById('stickers-grid'); 
+    if (grid) {
+        const img = document.createElement('img'); img.src = b64; img.classList.add('grid-stk-img');
+        img.onclick = () => {
+            if (currentUser) {
+                const myKey = currentUser.nickname.replace('@', '');
+                const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: b64, timestamp: Date.now() };
+                if (currentChatTarget === "global") payload.channel = "global";
+                else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
+                else { payload.channel = "private"; payload.receiver = currentChatTarget; }
+                push(ref(db, 'messages'), payload); document.getElementById('stickers-panel').classList.add('hidden');
+            }
+        };
+        grid.appendChild(img);
+    }
 });
 
-// FUNCIÓN SÍNCRONA INTERNA DE ESCUCHA DE MENSAJES (MUEVE LOS OYENTES DETRÁS DE LA CACHÉ)
+// ESCUCHA DE MENSAJES EN TIEMPO REAL
 const initMessagesLiveStreamListener = () => {
-    if (isMessageListenerAttached) return; // Asegurar un único oyente activo
+    if (isMessageListenerAttached) return;
     isMessageListenerAttached = true;
 
     onChildAdded(ref(db, 'messages'), (snapshot) => {
@@ -456,45 +518,58 @@ const initMessagesLiveStreamListener = () => {
     });
 };
 
-document.getElementById('btn-register-submit').onclick = async () => {
-    const name = document.getElementById('reg-name').value.trim(); const nickname = document.getElementById('reg-nickname').value.trim(); const password = document.getElementById('reg-password').value;
-    if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Rellena todo.");
-    try {
-        const snap = await get(child(dbRef, `users/${nickname}`)); if (snap.exists()) return alert("Username ocupado.");
-        const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
-        await set(ref(db, `users/${nickname}`), userData);
-        push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
-        currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
-    } catch (err) { alert("Error."); }
-};
+const btnRegister = document.getElementById('btn-register-submit');
+if (btnRegister) {
+    btnRegister.onclick = async () => {
+        const name = document.getElementById('reg-name').value.trim(); const nickname = document.getElementById('reg-nickname').value.trim(); const password = document.getElementById('reg-password').value;
+        if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Rellena todo.");
+        try {
+            const snap = await get(child(dbRef, `users/${nickname}`)); if (snap.exists()) return alert("Username ocupado.");
+            const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
+            await set(ref(db, `users/${nickname}`), userData);
+            push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
+            currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
+        } catch (err) { alert("Error al registrar cuenta."); }
+    };
+}
 
-document.getElementById('btn-login-submit').onclick = async () => {
-    const nickname = document.getElementById('login-nickname').value.trim().toLowerCase(); const password = document.getElementById('login-password').value;
-    try {
-        const snap = await get(child(dbRef, `users/${nickname}`)); if (!snap.exists()) return alert("No existe.");
-        const userData = snap.val(); if (userData.password !== password) return alert("Incorrecto.");
-        currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
-    } catch (err) { alert("Error."); }
-};
+const btnLogin = document.getElementById('btn-login-submit');
+if (btnLogin) {
+    btnLogin.onclick = async () => {
+        const nickname = document.getElementById('login-nickname').value.trim().toLowerCase(); const password = document.getElementById('login-password').value;
+        try {
+            const snap = await get(child(dbRef, `users/${nickname}`)); if (!snap.exists()) return alert("Usuario no encontrado.");
+            const userData = snap.val(); if (userData.password !== password) return alert("Contraseña incorrecta.");
+            currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
+        } catch (err) { alert("Error al iniciar sesión."); }
+    };
+}
 
 const initAppAfterLogin = async () => {
     document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('chat-screen').classList.remove('hidden');
     document.getElementById('current-user-avatar').src = currentUser.avatar; document.getElementById('current-user-name').textContent = currentUser.name; document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
-    // 1. DESCARGAR LA CONFIGURACIÓN GLOBAL DE USUARIOS PRIMERO (PASO CRÍTICO MANDATORIO)
+    // 1. CARGAR USUARIOS EN CACHÉ
     const snapUsers = await get(child(dbRef, 'users'));
     currentUsersCachedMap = snapUsers.val() || {};
     
-    // 2. UNA VEZ CARGADA LA CACHÉ, ENTRAR A LA ESCUCHA DE LOS MENSAJES HISTÓRICOS Y EN VIVO
+    // 2. INICIAR OYENTE DE MENSAJES
     initMessagesLiveStreamListener();
     
     PresenceSystem.init(); PresenceSystem.listenPresence();
 };
 
-document.getElementById('logout-btn').onclick = () => {
-    PresenceSystem.updateState("offline"); currentUser = null; allMessagesCache = []; privateUnreadCounts = {}; isMessageListenerAttached = false;
-    localStorage.removeItem('chat_session_v5'); document.getElementById('chat-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden');
-};
+const logoutBtn = document.getElementById('logout-btn');
+if (logoutBtn) {
+    logoutBtn.onclick = () => {
+        PresenceSystem.updateState("offline"); currentUser = null; allMessagesCache = []; privateUnreadCounts = {}; isMessageListenerAttached = false;
+        localStorage.removeItem('chat_session_v5'); document.getElementById('chat-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden');
+    };
+}
 
+// RECUPERAR SESIÓN GUARDADA
 const savedSession = localStorage.getItem('chat_session_v5');
-if (savedSession) { currentUser = JSON.parse(savedSession); initAppAfterLogin(); }
+if (savedSession) { 
+    currentUser = JSON.parse(savedSession); 
+    initAppAfterLogin(); 
+}
