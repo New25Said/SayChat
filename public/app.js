@@ -34,21 +34,25 @@ let loginTimeMark = Date.now();
 let currentUsersCachedMap = {}; 
 let isMessageListenerAttached = false;
 
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
     reader.onloadend = () => callback(reader.result);
+    reader.onerror = () => callback(DEFAULT_AVATAR);
     reader.readAsDataURL(file);
 };
 
-// COMPRESOR MULTIMEDIA
 const optimizeAndCompressMedia = (file, callback) => {
+    if (!file) return callback(DEFAULT_AVATAR);
+
     if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const max_size = 800; 
+                const max_size = 400; 
                 let width = img.width; let height = img.height;
                 if (width > height) {
                     if (width > max_size) { height *= max_size / width; width = max_size; }
@@ -58,15 +62,19 @@ const optimizeAndCompressMedia = (file, callback) => {
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                callback(canvas.toDataURL('image/jpeg', 0.7)); 
+                callback(canvas.toDataURL('image/jpeg', 0.6)); 
             };
+            img.onerror = () => callback(DEFAULT_AVATAR);
             img.src = event.target.result;
         };
+        reader.onerror = () => callback(DEFAULT_AVATAR);
         reader.readAsDataURL(file);
     } else if (file.type.startsWith('video/')) {
         const reader = new FileReader();
         reader.onloadend = () => { callback(reader.result); };
         reader.readAsDataURL(file);
+    } else {
+        callback(DEFAULT_AVATAR);
     }
 };
 
@@ -149,7 +157,7 @@ const PresenceSystem = {
                 if (!existingRow) {
                     existingRow = document.createElement('div'); existingRow.id = `group-row-${gKey}`; existingRow.classList.add('contact-list-row');
                     existingRow.innerHTML = `
-                        <div class="contact-avatar-wrapper"><img src="${group.avatar}" class="custom-avatar" alt="Group"></div>
+                        <div class="contact-avatar-wrapper"><img src="${group.avatar || DEFAULT_AVATAR}" class="custom-avatar" alt="Group"></div>
                         <div class="contact-info-block"><h4>${group.name}</h4><p class="contact-sub" style="color:var(--accent)">👥 Grupo de SayChat</p></div>
                         <span class="private-unread-badge hidden" id="unread-badge-${gKey}">0</span>
                     `;
@@ -182,7 +190,7 @@ const PresenceSystem = {
                 existingRow = document.createElement('div'); existingRow.id = `user-row-${key}`; existingRow.classList.add('contact-list-row');
                 existingRow.innerHTML = `
                     <div class="contact-avatar-wrapper">
-                        <img src="${user.avatar}" class="custom-avatar target-user-img" alt="Avatar">
+                        <img src="${user.avatar || DEFAULT_AVATAR}" class="custom-avatar target-user-img" alt="Avatar">
                         <span class="status-indicator-dot ${userState}"></span>
                     </div>
                     <div class="contact-info-block"><h4 class="target-user-name">${user.name}</h4><p class="contact-sub">${user.nickname}</p></div>
@@ -203,7 +211,7 @@ const PresenceSystem = {
             } else {
                 const dot = existingRow.querySelector('.status-indicator-dot'); if (dot) dot.className = `status-indicator-dot ${userState}`;
                 const textName = existingRow.querySelector('.target-user-name'); if (textName) textName.textContent = user.name;
-                const imgAv = existingRow.querySelector('.target-user-img'); if (imgAv) imgAv.src = user.avatar;
+                const imgAv = existingRow.querySelector('.target-user-img'); if (imgAv) imgAv.src = user.avatar || DEFAULT_AVATAR;
             }
             const badge = document.getElementById(`unread-badge-${key}`);
             if (badge && privateUnreadCounts[key] > 0) { badge.textContent = privateUnreadCounts[key]; badge.classList.remove('hidden'); }
@@ -212,7 +220,7 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// INYECCIÓN Y RENDERIZADO DE MENSAJES
+// RENDERIZADO DE MENSAJES
 // ==========================================================================
 const renderSingleMessageAppend = (msgData) => {
     let shouldRender = false;
@@ -232,7 +240,7 @@ const renderSingleMessageAppend = (msgData) => {
         box.appendChild(sysDiv); box.scrollTop = box.scrollHeight; return;
     }
 
-    const liveAuthor = currentUsersCachedMap[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: "" };
+    const liveAuthor = currentUsersCachedMap[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: DEFAULT_AVATAR };
     const msgRow = document.createElement('div'); msgRow.classList.add('msg-row');
     if (currentUser && liveAuthor.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) msgRow.classList.add('msg-row-me');
 
@@ -248,7 +256,7 @@ const renderSingleMessageAppend = (msgData) => {
     }
 
     msgRow.innerHTML = `
-        <img src="${liveAuthor.avatar || ''}" class="custom-avatar" style="width:28px; height:28px; margin-bottom:4px;" alt="Avatar">
+        <img src="${liveAuthor.avatar || DEFAULT_AVATAR}" class="custom-avatar" style="width:24px; height:24px; margin-bottom:2px;" alt="Avatar">
         <div class="msg-bubble">
             <div class="msg-meta"><span class="meta-name">${liveAuthor.name}</span><span class="meta-nick">${liveAuthor.nickname}</span></div>
             ${contentHTML}
@@ -313,8 +321,10 @@ const modalNameInput = document.getElementById('edit-name-input');
 if (openModalBtn) {
     openModalBtn.addEventListener('click', () => {
         if (currentUser) {
-            modalAvatarImg.src = currentUser.avatar; modalNameInput.value = currentUser.name;
-            tempModalAvatarBase64 = currentUser.avatar; modalOverlay.classList.remove('hidden');
+            modalAvatarImg.src = currentUser.avatar || DEFAULT_AVATAR; 
+            modalNameInput.value = currentUser.name;
+            tempModalAvatarBase64 = currentUser.avatar || DEFAULT_AVATAR; 
+            modalOverlay.classList.remove('hidden');
         }
     });
 }
@@ -377,7 +387,7 @@ if (saveGroupBtn) {
     saveGroupBtn.onclick = async () => {
         const gName = document.getElementById('group-name-input').value.trim();
         if (!gName) return alert("Ponle un nombre al grupo.");
-        if (!tempGroupAvatarBase64) return alert("Sube una foto para el grupo.");
+        if (!tempGroupAvatarBase64) tempGroupAvatarBase64 = DEFAULT_AVATAR;
         const marked = []; document.querySelectorAll('#group-members-checklist input:checked').forEach(i => marked.push(i.value));
         const myKey = currentUser.nickname.replace('@', ''); marked.push(myKey);
         const groupKey = "group_" + Date.now();
@@ -387,7 +397,7 @@ if (saveGroupBtn) {
 }
 
 // ==========================================================================
-// REGISTRO, LOGIN Y ACTIVACIÓN
+// REGISTRO, LOGIN Y NAVEGACIÓN
 // ==========================================================================
 const goToRegister = document.getElementById('go-to-register');
 if (goToRegister) {
@@ -432,8 +442,10 @@ const executeMessageSend = () => {
         if (currentChatTarget === "global") payload.channel = "global";
         else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
         else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-        push(ref(db, 'messages'), payload); 
-        input.value = '';
+        
+        push(ref(db, 'messages'), payload)
+            .then(() => { input.value = ''; })
+            .catch((err) => { alert("Error al enviar mensaje: " + err.message); });
     }
 };
 
@@ -500,7 +512,7 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
     }
 });
 
-// ESCUCHA DE MENSAJES EN TIEMPO REAL
+// ESCUCHA DE MENSAJES EN TIEMPO REAL (SIN NOTIFICACIÓN EN CARGA INICIAL)
 const initMessagesLiveStreamListener = () => {
     if (isMessageListenerAttached) return;
     isMessageListenerAttached = true;
@@ -509,16 +521,20 @@ const initMessagesLiveStreamListener = () => {
         const data = snapshot.val();
         allMessagesCache.push(data);
 
-        const isNewMessage = data.timestamp > loginTimeMark;
+        // SOLO SE ACTIVA NOTIFICACIÓN SI EL MENSAJE ES POSTERIOR AL LOGIN Y OCURRIÓ HACE MENOS DE 5 SEGUNDOS
+        const isNewRealtimeMessage = data.timestamp > loginTimeMark && (Date.now() - data.timestamp) < 5000;
         const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
 
-        if (isNewMessage) {
+        if (isNewRealtimeMessage) {
             if (!isMe) NotificationSystem.trigger();
             if (data.channel === "global" && currentChatTarget !== "global") {
                 privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
                 const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
-            } else if (data.channel === "group" && currentChatTarget !== data.receiver) { privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; }
-            else if (data.channel === "private" && data.sender !== currentChatTarget) { privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; }
+            } else if (data.channel === "group" && currentChatTarget !== data.receiver) { 
+                privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; 
+            } else if (data.channel === "private" && data.sender !== currentChatTarget) { 
+                privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; 
+            }
         }
         renderSingleMessageAppend(data);
     });
@@ -531,14 +547,17 @@ if (btnRegister) {
         const rawNickname = document.getElementById('reg-nickname').value.trim().toLowerCase().replace('@', ''); 
         const password = document.getElementById('reg-password').value;
         
-        if (!name || !rawNickname || !password || !tempRegisterAvatar) {
-            return alert("Por favor completa todos los campos y sube una foto de perfil.");
+        if (!name || !rawNickname || !password) {
+            return alert("Por favor ingresa tu Nombre, Username y Contraseña.");
         }
+
+        const finalAvatar = tempRegisterAvatar || DEFAULT_AVATAR;
+
         try {
             const snap = await get(child(dbRef, `users/${rawNickname}`)); 
-            if (snap.exists()) return alert("Ese nombre de usuario ya está registrado.");
+            if (snap.exists()) return alert("El nombre de usuario @" + rawNickname + " ya existe.");
             
-            const userData = { name, nickname: '@' + rawNickname, password, avatar: tempRegisterAvatar };
+            const userData = { name, nickname: '@' + rawNickname, password, avatar: finalAvatar };
             await set(ref(db, `users/${rawNickname}`), userData);
             
             push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
@@ -549,7 +568,7 @@ if (btnRegister) {
             await initAppAfterLogin();
         } catch (err) { 
             console.error(err);
-            alert("Error al registrar cuenta."); 
+            alert("Error de Firebase: " + err.message + "\n\nAsegúrate de actualizar las Reglas de Firebase a públicas."); 
         }
     };
 }
@@ -569,7 +588,7 @@ if (btnLogin) {
             loginTimeMark = Date.now(); 
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); 
             await initAppAfterLogin();
-        } catch (err) { alert("Error al iniciar sesión."); }
+        } catch (err) { alert("Error al iniciar sesión: " + err.message); }
     };
 }
 
@@ -577,7 +596,7 @@ const initAppAfterLogin = async () => {
     document.getElementById('auth-screen').classList.add('hidden'); 
     document.getElementById('chat-screen').classList.remove('hidden');
     
-    document.getElementById('current-user-avatar').src = currentUser.avatar; 
+    document.getElementById('current-user-avatar').src = currentUser.avatar || DEFAULT_AVATAR; 
     document.getElementById('current-user-name').textContent = currentUser.name; 
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
