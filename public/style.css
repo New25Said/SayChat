@@ -39,14 +39,12 @@ html, body {
     color: var(--text-main);
     overflow: hidden;
     font-size: 13.5px;
-    /* Halos ambientales Guinda Ultra Dark */
     background-image: 
         radial-gradient(circle at 15% 20%, rgba(163, 13, 54, 0.22) 0%, transparent 45%),
         radial-gradient(circle at 85% 80%, rgba(74, 0, 22, 0.28) 0%, transparent 50%);
     background-attachment: fixed;
 }
 
-/* Scrollbar Personalizado */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -66,7 +64,7 @@ html, body {
 .animate-fade { animation: normalShow 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes normalShow { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
 
-/* CARDS ACCESO (GLASSMORPHISM) */
+/* CARDS ACCESO */
 .window-screen { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
 .whatsapp-auth-card { 
     background: var(--bg-sidebar); 
@@ -92,7 +90,7 @@ html, body {
 
 input[type="text"], input[type="password"] {
     width: 100%; 
-    padding: 13px 16px; 
+    padding: 12px 16px; 
     background: var(--bg-input); 
     border: 1px solid var(--border-clean); 
     color: var(--text-main); 
@@ -111,7 +109,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .btn-whatsapp { 
     width: 100%; 
-    padding: 13px; 
+    padding: 12px; 
     background: var(--guinda-gradient); 
     color: #fff; 
     border: 1px solid rgba(255, 255, 255, 0.15); 
@@ -134,7 +132,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .custom-avatar { width: 44px; height: 44px; object-fit: cover; border-radius: 50% !important; background: #222; border: 1px solid var(--border-clean); position: relative; }
 
-/* LAYOUT MULTICOLUMNA GLASS */
+/* LAYOUT MULTICOLUMNA */
 .whatsapp-layout-wrapper { display: flex; flex-direction: row; width: 100vw; height: 100vh; }
 .whatsapp-sidebar { 
     width: 320px; 
@@ -195,7 +193,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .private-unread-badge { background: var(--guinda-gradient); color: white; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 50% !important; display: flex; align-items: center; justify-content: center; padding: 0 5px; position: absolute; right: 16px; bottom: 14px; box-shadow: 0 2px 8px rgba(230, 25, 85, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); }
 
-/* VIEWPORT CHAT GLASS */
+/* VIEWPORT CHAT */
 .viewport-header { 
     background: var(--bg-header); 
     backdrop-filter: var(--glass-blur);
@@ -207,48 +205,64 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 .active-chat-meta h2 { font-size: 14.5px; font-weight: 600; color: var(--text-main); }
 
-#chat-box { flex: 1; padding: 24px 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+#chat-box { flex: 1; padding: 16px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .whatsapp-chat-bg { background-color: transparent; background-image: radial-gradient(rgba(230, 25, 85, 0.08) 1.5px, transparent 0); background-size: 28px 28px; }
 
-/* GLOBOS DE MENSAJE GLASS */
-.msg-row { display: flex; max-width: 70%; align-self: flex-start; align-items: flex-end; margin-bottom: 2px; gap: 8px; }
-.msg-row-me { align-self: flex-end; justify-content: flex-end; flex-direction: row-reverse; }
+/* MENSAJES COMPACTOS NEGROS CON BORDE GUINDA DEGRADADO */
+.msg-row { 
+    display: flex; 
+    max-width: 75%; 
+    align-self: flex-start; 
+    align-items: flex-end; 
+    margin-bottom: 1px; 
+    gap: 6px; 
+}
+.msg-row-me { 
+    align-self: flex-end; 
+    justify-content: flex-end; 
+    flex-direction: row-reverse; 
+}
 
 .msg-bubble { 
-    background: rgba(255, 255, 255, 0.05); 
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-clean);
-    padding: 9px 14px; 
-    border-radius: 4px 14px 14px 14px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
+    background: #040406; 
+    border: 1px solid transparent;
+    background-image: linear-gradient(#040406, #040406), linear-gradient(135deg, rgba(230, 25, 85, 0.45), rgba(74, 0, 22, 0.2));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    padding: 5px 11px; 
+    border-radius: 4px 10px 10px 10px; 
+    box-shadow: 0 2px 10px rgba(0,0,0,0.8); 
     position: relative; 
 }
+
 .msg-row-me .msg-bubble { 
-    background: var(--guinda-gradient); 
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 14px 4px 14px 14px; 
-    box-shadow: 0 4px 18px rgba(128, 0, 32, 0.45);
+    background: #080205; 
+    border: 1px solid transparent;
+    background-image: linear-gradient(#080205, #080205), linear-gradient(135deg, rgba(230, 25, 85, 0.75), rgba(128, 0, 32, 0.4));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    border-radius: 10px 4px 10px 10px; 
+    box-shadow: 0 2px 12px rgba(128, 0, 32, 0.35);
 }
 
-.msg-meta { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 2px; }
-.meta-name { font-size: 11px; font-weight: 700; color: #ffffff !important; }
-.meta-nick { font-size: 9px; color: var(--text-muted); opacity: 0.8; }
+.msg-meta { display: flex; align-items: baseline; gap: 6px; margin-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 1px; }
+.meta-name { font-size: 10.5px; font-weight: 700; color: #ffffff !important; }
+.meta-nick { font-size: 8.5px; color: var(--text-muted); opacity: 0.8; }
 
-.msg-body { font-size: 13.5px; line-height: 1.45; word-break: break-word; color: #f0f2f3; }
-.msg-sticker { max-width: 95px; max-height: 95px; display: block; margin-top: 4px; border-radius: 6px; cursor: pointer; transition: transform 0.1s ease; }
+.msg-body { font-size: 13px; line-height: 1.35; word-break: break-word; color: #f0f2f3; margin: 0; }
+.msg-sticker { max-width: 90px; max-height: 90px; display: block; margin-top: 3px; border-radius: 6px; cursor: pointer; transition: transform 0.1s ease; }
 .msg-sticker:hover { transform: scale(1.04); }
 
-.msg-media-expanded { max-width: 280px; max-height: 200px; object-fit: cover; border-radius: 10px; display: block; margin-top: 6px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: transform 0.1s ease; }
+.msg-media-expanded { max-width: 260px; max-height: 180px; object-fit: cover; border-radius: 8px; display: block; margin-top: 4px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: transform 0.1s ease; }
 .msg-media-expanded:hover { transform: scale(1.02); }
 
-.msg-system-line { align-self: center; background: rgba(128, 0, 32, 0.25); border: 1px solid rgba(163, 13, 54, 0.4); font-size: 11.5px; padding: 5px 14px; border-radius: 8px; color: #ff99b3; margin: 8px 0; text-align: center; max-width: 90%; backdrop-filter: blur(10px); }
-.msg-time { display: block; font-size: 9px; color: var(--text-muted); text-align: right; margin-top: 4px; }
+.msg-system-line { align-self: center; background: rgba(128, 0, 32, 0.25); border: 1px solid rgba(163, 13, 54, 0.4); font-size: 11px; padding: 4px 12px; border-radius: 8px; color: #ff99b3; margin: 6px 0; text-align: center; max-width: 90%; backdrop-filter: blur(10px); }
+.msg-time { display: block; font-size: 8.5px; color: var(--text-muted); text-align: right; margin-top: 2px; }
 
-/* STICKERS POPUP GLASS */
+/* STICKERS POPUP */
 .stickers-popup { 
     position: absolute; 
-    bottom: 76px; 
+    bottom: 70px; 
     left: 20px; 
     width: 240px; 
     background: rgba(15, 15, 22, 0.85); 
@@ -264,36 +278,50 @@ input[type="text"]:focus, input[type="password"]:focus {
 .stickers-grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 130px; overflow-y: auto; }
 .grid-stk-img { width: 100%; height: 45px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-clean); cursor: pointer; }
 
-/* FORMULARIO INFERIOR ALINEADO */
+/* BARRA DE INPUTS TOTALMENTE ALINEADA SIN MARGEN ELEVADO */
 #chat-form-mock { 
     display: flex; 
-    padding: 0 20px; 
+    padding: 0 16px; 
     background: var(--bg-header); 
     backdrop-filter: var(--glass-blur);
-    gap: 14px; 
+    gap: 10px; 
     align-items: center; 
     justify-content: center;
-    height: 68px; 
+    height: 60px; 
     box-sizing: border-box; 
     margin: 0 !important; 
     border-top: 1px solid var(--border-clean);
 }
-.btn-stk-trigger { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; display: flex; align-items: center; transition: var(--ease-normal); border-radius: 50%; }
+
+.btn-stk-trigger { 
+    background: transparent; 
+    border: none; 
+    color: var(--text-muted); 
+    cursor: pointer; 
+    padding: 6px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    transition: var(--ease-normal); 
+    border-radius: 50%; 
+    margin: 0 !important;
+}
 .btn-stk-trigger:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.08); }
 
 #chat-form-mock input { 
     flex: 1; 
-    padding: 0 16px; 
+    padding: 0 14px; 
     background: var(--bg-input); 
     border: 1px solid var(--border-clean); 
     color: var(--text-main); 
     outline: none; 
-    border-radius: 10px; 
-    font-size: 14px; 
-    height: 40px; 
-    margin-top: 2px;
+    border-radius: 8px; 
+    font-size: 13.5px; 
+    height: 38px; 
+    margin: 0 !important;
     backdrop-filter: blur(10px);
     transition: var(--ease-normal);
+    line-height: normal;
 }
 #chat-form-mock input:focus { 
     border-color: var(--accent); 
@@ -302,20 +330,20 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 .btn-send-whatsapp { 
-    padding: 0 22px; 
+    padding: 0 20px; 
     background: var(--guinda-gradient); 
     color: white; 
     border: 1px solid rgba(255, 255, 255, 0.2); 
     font-weight: 600; 
     cursor: pointer; 
-    border-radius: 10px; 
-    height: 40px; 
-    font-size: 13.5px; 
+    border-radius: 8px; 
+    height: 38px; 
+    font-size: 13px; 
     transition: var(--ease-normal);
     display: flex; 
     align-items: center; 
     justify-content: center; 
-    margin-top: 2px;
+    margin: 0 !important;
     box-shadow: 0 4px 15px rgba(128, 0, 32, 0.4);
 }
 .btn-send-whatsapp:hover { 
@@ -323,7 +351,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     box-shadow: 0 6px 20px rgba(230, 25, 85, 0.5); 
 }
 
-/* REVISIÓN MEDIANA PARA LAS VISTAS PREVIAS */
+/* MEDIOS Y VISOR */
 #media-viewer-container img, 
 #media-viewer-container video {
     max-width: 140px !important;   
@@ -335,7 +363,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     border: 1px solid var(--border-accent);
 }
 
-/* MODALES GLASSMORPHIC */
+/* MODALES GLASS */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 6, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(12px); }
 .modal-card { 
     background: rgba(15, 15, 22, 0.85); 
