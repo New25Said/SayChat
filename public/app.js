@@ -24,7 +24,7 @@ let currentChatTarget = "global";
 let chatTargetType = "global"; 
 let unreadCountGlobal = 0;
 let privateUnreadCounts = {}; 
-let allMessagesCache = []; // <-- VARIABLE AGREGADA (Corrección del congelamiento)
+let allMessagesCache = []; 
 let baseTitle = "SayChat";
 let originalFavicon = null;
 let tempRegisterAvatar = "";
@@ -212,13 +212,13 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// INYECCIÓN DE MENSAJES UNITARIOS EN TIEMPO REAL
+// INYECCIÓN Y RENDERIZADO DE MENSAJES
 // ==========================================================================
 const renderSingleMessageAppend = (msgData) => {
     let shouldRender = false;
     if (currentChatTarget === "global" && msgData.channel === "global") shouldRender = true;
     else if (chatTargetType === "private" && msgData.channel === "private") {
-        const myKey = currentUser.nickname.replace('@', '');
+        const myKey = currentUser ? currentUser.nickname.replace('@', '') : '';
         if ((msgData.sender === myKey && msgData.receiver === currentChatTarget) || (msgData.sender === currentChatTarget && msgData.receiver === myKey)) shouldRender = true;
     } else if (chatTargetType === "group" && msgData.channel === "group" && msgData.receiver === currentChatTarget) shouldRender = true;
 
@@ -387,7 +387,7 @@ if (saveGroupBtn) {
 }
 
 // ==========================================================================
-// REGISTRO, LOGIN Y NAVEGACIÓN
+// REGISTRO, LOGIN Y ACTIVACIÓN
 // ==========================================================================
 const goToRegister = document.getElementById('go-to-register');
 if (goToRegister) {
@@ -409,25 +409,31 @@ const regAvatar = document.getElementById('reg-avatar');
 if (regAvatar) {
     regAvatar.addEventListener('change', (e) => {
         if (e.target.files[0]) {
-            imageToConvert64(e.target.files[0], (base64) => {
+            optimizeAndCompressMedia(e.target.files[0], (base64) => {
                 tempRegisterAvatar = base64;
                 const preview = document.getElementById('reg-preview');
-                preview.src = base64; preview.classList.remove('hidden');
-                document.getElementById('label-reg-avatar').textContent = "Foto Lista ✓";
+                if (preview) {
+                    preview.src = base64; 
+                    preview.classList.remove('hidden');
+                }
+                const label = document.getElementById('label-reg-avatar');
+                if (label) label.textContent = "Foto Lista ✓";
             });
         }
     });
 }
 
 const executeMessageSend = () => {
-    const input = document.getElementById('message-input'); const msg = input.value.trim();
+    const input = document.getElementById('message-input'); 
+    const msg = input.value.trim();
     if (msg && currentUser) {
         const myKey = currentUser.nickname.replace('@', '');
         const payload = { sender: myKey, message: msg, type: 'text', timestamp: Date.now() };
         if (currentChatTarget === "global") payload.channel = "global";
         else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
         else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-        push(ref(db, 'messages'), payload); input.value = '';
+        push(ref(db, 'messages'), payload); 
+        input.value = '';
     }
 };
 
@@ -521,33 +527,59 @@ const initMessagesLiveStreamListener = () => {
 const btnRegister = document.getElementById('btn-register-submit');
 if (btnRegister) {
     btnRegister.onclick = async () => {
-        const name = document.getElementById('reg-name').value.trim(); const nickname = document.getElementById('reg-nickname').value.trim(); const password = document.getElementById('reg-password').value;
-        if (!name || !nickname || !password || !tempRegisterAvatar) return alert("Rellena todo.");
+        const name = document.getElementById('reg-name').value.trim(); 
+        const rawNickname = document.getElementById('reg-nickname').value.trim().toLowerCase().replace('@', ''); 
+        const password = document.getElementById('reg-password').value;
+        
+        if (!name || !rawNickname || !password || !tempRegisterAvatar) {
+            return alert("Por favor completa todos los campos y sube una foto de perfil.");
+        }
         try {
-            const snap = await get(child(dbRef, `users/${nickname}`)); if (snap.exists()) return alert("Username ocupado.");
-            const userData = { name, nickname: '@' + nickname, password, avatar: tempRegisterAvatar };
-            await set(ref(db, `users/${nickname}`), userData);
+            const snap = await get(child(dbRef, `users/${rawNickname}`)); 
+            if (snap.exists()) return alert("Ese nombre de usuario ya está registrado.");
+            
+            const userData = { name, nickname: '@' + rawNickname, password, avatar: tempRegisterAvatar };
+            await set(ref(db, `users/${rawNickname}`), userData);
+            
             push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
-            currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
-        } catch (err) { alert("Error al registrar cuenta."); }
+            
+            currentUser = userData; 
+            loginTimeMark = Date.now(); 
+            localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); 
+            await initAppAfterLogin();
+        } catch (err) { 
+            console.error(err);
+            alert("Error al registrar cuenta."); 
+        }
     };
 }
 
 const btnLogin = document.getElementById('btn-login-submit');
 if (btnLogin) {
     btnLogin.onclick = async () => {
-        const nickname = document.getElementById('login-nickname').value.trim().toLowerCase(); const password = document.getElementById('login-password').value;
+        const nickname = document.getElementById('login-nickname').value.trim().toLowerCase().replace('@', ''); 
+        const password = document.getElementById('login-password').value;
         try {
-            const snap = await get(child(dbRef, `users/${nickname}`)); if (!snap.exists()) return alert("Usuario no encontrado.");
-            const userData = snap.val(); if (userData.password !== password) return alert("Contraseña incorrecta.");
-            currentUser = userData; loginTimeMark = Date.now(); localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); await initAppAfterLogin();
+            const snap = await get(child(dbRef, `users/${nickname}`)); 
+            if (!snap.exists()) return alert("Usuario no encontrado.");
+            const userData = snap.val(); 
+            if (userData.password !== password) return alert("Contraseña incorrecta.");
+            
+            currentUser = userData; 
+            loginTimeMark = Date.now(); 
+            localStorage.setItem('chat_session_v5', JSON.stringify(currentUser)); 
+            await initAppAfterLogin();
         } catch (err) { alert("Error al iniciar sesión."); }
     };
 }
 
 const initAppAfterLogin = async () => {
-    document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('chat-screen').classList.remove('hidden');
-    document.getElementById('current-user-avatar').src = currentUser.avatar; document.getElementById('current-user-name').textContent = currentUser.name; document.getElementById('current-user-nickname').textContent = currentUser.nickname;
+    document.getElementById('auth-screen').classList.add('hidden'); 
+    document.getElementById('chat-screen').classList.remove('hidden');
+    
+    document.getElementById('current-user-avatar').src = currentUser.avatar; 
+    document.getElementById('current-user-name').textContent = currentUser.name; 
+    document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
     // 1. CARGAR USUARIOS EN CACHÉ
     const snapUsers = await get(child(dbRef, 'users'));
@@ -556,14 +588,21 @@ const initAppAfterLogin = async () => {
     // 2. INICIAR OYENTE DE MENSAJES
     initMessagesLiveStreamListener();
     
-    PresenceSystem.init(); PresenceSystem.listenPresence();
+    PresenceSystem.init(); 
+    PresenceSystem.listenPresence();
 };
 
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.onclick = () => {
-        PresenceSystem.updateState("offline"); currentUser = null; allMessagesCache = []; privateUnreadCounts = {}; isMessageListenerAttached = false;
-        localStorage.removeItem('chat_session_v5'); document.getElementById('chat-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden');
+        PresenceSystem.updateState("offline"); 
+        currentUser = null; 
+        allMessagesCache = []; 
+        privateUnreadCounts = {}; 
+        isMessageListenerAttached = false;
+        localStorage.removeItem('chat_session_v5'); 
+        document.getElementById('chat-screen').classList.add('hidden'); 
+        document.getElementById('auth-screen').classList.remove('hidden');
     };
 }
 
