@@ -1,8 +1,8 @@
 /* ==========================================================================
-   GLASSMORPHISM ULTRA DARKNESS - COLOR GUINDA (COMPLETE STYLESHEET)
+   GLASSMORPHISM ULTRA DARKNESS - COLOR GUINDA (COMPLETO)
    ========================================================================== */
 
-/* 1. RESET & VARIABLES GLOBALES */
+/* 1. RESET Y VARIABLES GLOBALES */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -10,50 +10,48 @@
 }
 
 :root {
-  /* Paleta Base Ultra Dark */
-  --bg-dark-base: #060608;
-  --bg-dark-surface: #0c0c10;
-  --bg-dark-card: rgba(18, 18, 24, 0.45);
-  --bg-dark-card-hover: rgba(28, 28, 38, 0.65);
+  /* Fondo Base Ultra Dark */
+  --bg-dark-base: #0a0a0f;
   
-  /* Glassmorphism Props */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.015);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(186, 24, 73, 0.35);
+  /* Cristal Glassmorphic con luz y contraste optimizado */
+  --bg-dark-card: rgba(255, 255, 255, 0.05); 
+  --bg-dark-card-hover: rgba(255, 255, 255, 0.08);
+  
+  /* Bordes de cristal visibles */
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-border-hover: rgba(199, 21, 133, 0.6);
   --glass-blur: blur(20px);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  --glass-glow: 0 0 30px rgba(139, 0, 47, 0.25);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --glass-glow: 0 0 25px rgba(128, 0, 32, 0.4);
 
-  /* Paleta Guinda & Degradados */
-  --guinda-deep: #4A0016;
+  /* Guinda & Gradientes */
+  --guinda-deep: #4a0016;
   --guinda-main: #800020;
-  --guinda-medium: #A30D36;
-  --guinda-bright: #C71585;
-  --guinda-neon: #E61955;
+  --guinda-medium: #a30d36;
+  --guinda-bright: #c71585;
+  --guinda-neon: #e61955;
   
-  --gradiente-guinda-main: linear-gradient(135deg, #800020 0%, #30000D 100%);
-  --gradiente-guinda-glow: linear-gradient(135deg, #A30D36 0%, #500018 100%);
-  --gradiente-texto: linear-gradient(135deg, #FFFFFF 30%, #E61955 100%);
-  --gradiente-glass-border: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(128,0,32,0.3));
+  --gradiente-guinda-main: linear-gradient(135deg, #800020 0%, #30000d 100%);
+  --gradiente-guinda-glow: linear-gradient(135deg, #a30d36 0%, #500018 100%);
+  --gradiente-texto: linear-gradient(135deg, #ffffff 40%, #ff4d79 100%);
 
-  /* Tipografía y Textos */
+  /* Tipografía y Textos de Alto Contraste */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --text-primary: #F4F4F6;
-  --text-secondary: #9E9EA9;
-  --text-muted: #5C5C66;
-  --text-guinda: #FF3366;
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --text-guinda: #ff4d79;
 
-  /* Radio de bordes y Transiciones */
+  /* Bordes y Transiciones */
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --radius-full: 9999px;
   --transition-fast: 0.2s ease;
-  --transition-normal: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.3s ease;
 }
 
-/* 2. BODY Y ESTRUCTURA GENERAL */
+/* 2. BODY Y FONDO DE LUZ AMBIENTAL */
 html {
   font-size: 16px;
   scroll-behavior: smooth;
@@ -68,11 +66,10 @@ body {
   overflow-x: hidden;
   position: relative;
   
-  /* Iluminación Ambiental Ultra Dark con halos Guinda */
+  /* Halos Guinda en el fondo que atraviesan el cristal */
   background-image: 
-    radial-gradient(circle at 10% 10%, rgba(128, 0, 32, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 90% 85%, rgba(74, 0, 22, 0.22) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(12, 12, 16, 0.8) 0%, var(--bg-dark-base) 100%);
+    radial-gradient(circle at 20% 20%, rgba(163, 13, 54, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(74, 0, 22, 0.3) 0%, transparent 50%);
   background-attachment: fixed;
 }
 
@@ -85,15 +82,14 @@ body {
   background: var(--bg-dark-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(128, 0, 32, 0.4);
+  background: rgba(128, 0, 32, 0.5);
   border-radius: var(--radius-full);
-  border: 2px solid var(--bg-dark-base);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--guinda-medium);
 }
 
-/* 3. TIPOGRAFÍA Y ENCABEZADOS */
+/* 3. TIPOGRAFÍA */
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   font-weight: 700;
@@ -104,7 +100,6 @@ h1, h2, h3, h4, h5, h6 {
 h1 { font-size: 2.5rem; }
 h2 { font-size: 1.85rem; }
 h3 { font-size: 1.4rem; }
-h4 { font-size: 1.15rem; }
 
 p {
   color: var(--text-secondary);
@@ -112,7 +107,6 @@ p {
   margin-bottom: 1rem;
 }
 
-/* Texto Gradiente */
 .text-gradient {
   background: var(--gradiente-texto);
   -webkit-background-clip: text;
@@ -128,7 +122,7 @@ p {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 2rem 1.5rem;
 }
 
 .grid {
@@ -138,19 +132,6 @@ p {
 
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-.grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 
 /* 5. TARJETAS Y CONTENEDORES GLASSMORPHISM */
 .glass-panel, .glass-card {
@@ -160,13 +141,12 @@ p {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--glass-shadow), var(--glass-glow);
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
 }
 
-/* Detalle de brillo en esquina */
 .glass-card::before {
   content: '';
   position: absolute;
@@ -174,97 +154,16 @@ p {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
 }
 
 .glass-card:hover {
   background: var(--bg-dark-card-hover);
   border-color: var(--glass-border-hover);
-  box-shadow: var(--glass-shadow), var(--glass-glow);
   transform: translateY(-3px);
 }
 
-/* 6. NAVEGACIÓN Y NAVBAR GLASS */
-.glass-nav {
-  position: sticky;
-  top: 1rem;
-  z-index: 1000;
-  background: rgba(12, 12, 16, 0.6);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  padding: 0.85rem 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.nav-link {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.nav-link:hover, .nav-link.active {
-  color: var(--text-primary);
-  background: rgba(128, 0, 32, 0.2);
-  border: 1px solid rgba(163, 13, 54, 0.3);
-}
-
-/* 7. BOTONES */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  text-decoration: none;
-  outline: none;
-}
-
-/* Botón Guinda Primario con Gradiente */
-.btn-guinda {
-  background: var(--gradiente-guinda-main);
-  color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 20px rgba(128, 0, 32, 0.4);
-}
-
-.btn-guinda:hover {
-  background: var(--gradiente-guinda-glow);
-  box-shadow: 0 6px 28px rgba(230, 25, 85, 0.5);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.btn-guinda:active {
-  transform: translateY(0);
-}
-
-/* Botón Glass Secundario */
-.btn-glass {
-  background: var(--glass-bg);
-  color: var(--text-primary);
-  border-color: var(--glass-border);
-  backdrop-filter: var(--glass-blur);
-}
-
-.btn-glass:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--glass-border-hover);
-  color: #FFFFFF;
-}
-
-/* 8. FORMULARIOS E INPUTS GLASS */
+/* 6. FORMULARIOS E INPUTS GLASS */
 .form-group {
   margin-bottom: 1.25rem;
 }
@@ -280,7 +179,7 @@ p {
 .input-glass {
   width: 100%;
   padding: 0.8rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -296,42 +195,50 @@ p {
 }
 
 .input-glass:focus {
-  background: rgba(128, 0, 32, 0.05);
-  border-color: var(--guinda-medium);
-  box-shadow: 0 0 15px rgba(163, 13, 54, 0.3);
+  background: rgba(128, 0, 32, 0.1);
+  border-color: var(--guinda-bright);
+  box-shadow: 0 0 15px rgba(199, 21, 133, 0.4);
 }
 
-/* 9. BADGES Y ETIQUETAS */
-.badge-guinda {
+/* 7. BOTONES */
+.btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: var(--radius-full);
-  background: rgba(128, 0, 32, 0.25);
-  color: #FF6B8B;
-  border: 1px solid rgba(163, 13, 54, 0.4);
-}
-
-/* 10. MODALES / DIÁLOGOS GLASS */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(6, 6, 8, 0.85);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
   justify-content: center;
-  z-index: 2000;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.8rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  outline: none;
 }
 
-.modal-glass {
-  width: 90%;
-  max-width: 500px;
-  background: #0f0f15;
-  border: 1px solid var(--glass-border-hover);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), var(--glass-glow);
+.btn-guinda {
+  background: var(--gradiente-guinda-main);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(128, 0, 32, 0.5);
+}
+
+.btn-guinda:hover {
+  background: var(--gradiente-guinda-glow);
+  box-shadow: 0 6px 28px rgba(230, 25, 85, 0.6);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-glass {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-color: var(--glass-border);
+}
+
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--glass-border-hover);
 }
