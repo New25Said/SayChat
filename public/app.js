@@ -412,7 +412,7 @@ const renderSingleMessageAppend = (msgData) => {
         setTimeout(() => {
             const bubble = msgRow.querySelector('.msg-mention-glow');
             if (bubble) bubble.classList.remove('msg-mention-glow');
-        }, 5 * 60 * 1000); // Se elimina el marco a los 5 minutos
+        }, 5 * 60 * 1000); 
     }
 
     attachUniversalMediaPreviewEvents();
@@ -678,7 +678,7 @@ const executeMessageSend = () => {
                             parts: [{ text: m.message }]
                         }));
                     
-                    history.pop(); // Sacar el mensaje que acabamos de mandar
+                    history.pop(); 
 
                     fetch('/api/gemini', {
                         method: 'POST',
