@@ -32,7 +32,7 @@ app.post('/api/gemini', async (req, res) => {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-    const models = [
+const models = [
   // --- GENERACIÓN FRONTERA ACTUAL (Gemini 3.x) ---
   'gemini-3.7-flash',       // Último modelo insignia, optimizado para tareas complejas y código (Agosto 2026)
   'gemini-3.6-flash',       // Alta velocidad y razonamiento avanzado de pasos múltiples
@@ -44,8 +44,8 @@ app.post('/api/gemini', async (req, res) => {
   'gemini-2.5-pro',         // El más capaz de la generación anterior para razonamiento complejo
   'gemini-2.5-flash',        // Modelo rápido y multimodal clásico de producción
   'gemini-2.5-flash-lite'   // Última opción de contingencia antes de un fallo total del servicio
-    'gemini-flash-latest'
 ];
+
 
   
   // Forzamos a la IA a solo usar el markdown de SayChat
