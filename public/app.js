@@ -34,6 +34,8 @@ let loginTimeMark = Date.now();
 let currentUsersCachedMap = {}; 
 let isMessageListenerAttached = false;
 let selectedMsgIdForContext = null;
+let isEditingGroupId = null;
+let oldGroupData = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
 
@@ -185,12 +187,16 @@ const PresenceSystem = {
                         document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
                         document.getElementById('header-channel-avatar').classList.add('hidden');
                         document.getElementById('header-channel-status').classList.add('hidden');
+                        document.getElementById('btn-edit-active-group').classList.remove('hidden');
                         privateUnreadCounts[gKey] = 0; 
                         const badge = document.getElementById(`unread-badge-${gKey}`);
                         if (badge) badge.classList.add('hidden');
                         reloadMessagesUI();
                     });
                     listContainer.appendChild(existingRow);
+                } else {
+                    const textName = existingRow.querySelector('h4'); if (textName) textName.textContent = group.name;
+                    const imgAv = existingRow.querySelector('.custom-avatar'); if (imgAv) imgAv.src = group.avatar || DEFAULT_AVATAR;
                 }
                 const badge = document.getElementById(`unread-badge-${gKey}`);
                 if (badge && privateUnreadCounts[gKey] > 0) { badge.textContent = privateUnreadCounts[gKey]; badge.classList.remove('hidden'); }
@@ -220,6 +226,7 @@ const PresenceSystem = {
                     document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                     existingRow.classList.add('active');
                     document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
+                    document.getElementById('btn-edit-active-group').classList.add('hidden');
                     
                     const headAv = document.getElementById('header-channel-avatar');
                     const headSt = document.getElementById('header-channel-status');
@@ -267,6 +274,11 @@ const renderSingleMessageAppend = (msgData) => {
 
     if (msgData.type === 'system') {
         const sysDiv = document.createElement('div'); sysDiv.classList.add('msg-system-line'); sysDiv.textContent = msgData.message;
+        box.appendChild(sysDiv); box.scrollTop = box.scrollHeight; return;
+    }
+
+    if (msgData.type === 'system-html') {
+        const sysDiv = document.createElement('div'); sysDiv.classList.add('msg-system-line'); sysDiv.innerHTML = msgData.message;
         box.appendChild(sysDiv); box.scrollTop = box.scrollHeight; return;
     }
 
@@ -382,7 +394,7 @@ if (stickerOverlay) {
 }
 
 // ==========================================================================
-// MODALES CENTRALES
+// MODALES CENTRALES Y GRUPOS
 // ==========================================================================
 const modalOverlay = document.getElementById('profile-edit-modal');
 const openModalBtn = document.getElementById('open-profile-modal-btn');
@@ -436,10 +448,15 @@ if (saveProfileBtn) {
 
 const groupModal = document.getElementById('group-create-modal');
 const openGroupBtn = document.getElementById('open-group-modal-btn');
+const btnEditActiveGroup = document.getElementById('btn-edit-active-group');
+
 if (openGroupBtn) {
-    openGroupBtn.onclick = async () => {
+    openGroupBtn.onclick = () => {
+        isEditingGroupId = null; oldGroupData = null;
+        document.getElementById('group-modal-title').textContent = "Crear Nuevo Grupo";
+        document.getElementById('btn-save-group-submit').textContent = "Construir Grupo";
         const checklist = document.getElementById('group-members-checklist'); checklist.innerHTML = "";
-        tempGroupAvatarBase64 = ""; document.getElementById('group-avatar-preview').textContent = "👥"; document.getElementById('group-name-input').value = "";
+        tempGroupAvatarBase64 = ""; document.getElementById('group-avatar-preview').innerHTML = "👥"; document.getElementById('group-name-input').value = "";
 
         Object.keys(currentUsersCachedMap).forEach(key => {
             if (currentUser && "@" + key === currentUser.nickname) return;
@@ -449,6 +466,34 @@ if (openGroupBtn) {
         });
         groupModal.classList.remove('hidden');
     };
+}
+
+if (btnEditActiveGroup) {
+    btnEditActiveGroup.onclick = async () => {
+        if (chatTargetType !== 'group') return;
+        isEditingGroupId = currentChatTarget;
+        
+        const snapG = await get(child(dbRef, `groups/${currentChatTarget}`));
+        oldGroupData = snapG.val();
+        if(!oldGroupData) return;
+
+        document.getElementById('group-modal-title').textContent = "Editar Grupo";
+        document.getElementById('btn-save-group-submit').textContent = "Guardar Cambios";
+        
+        document.getElementById('group-name-input').value = oldGroupData.name;
+        tempGroupAvatarBase64 = oldGroupData.avatar || DEFAULT_AVATAR;
+        document.getElementById('group-avatar-preview').innerHTML = `<img src="${tempGroupAvatarBase64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+
+        const checklist = document.getElementById('group-members-checklist'); checklist.innerHTML = "";
+        Object.keys(currentUsersCachedMap).forEach(key => {
+            if (currentUser && "@" + key === currentUser.nickname) return;
+            const row = document.createElement('label'); row.classList.add('checklist-row-item');
+            const isChecked = oldGroupData.members && oldGroupData.members.includes(key) ? "checked" : "";
+            row.innerHTML = `<input type="checkbox" value="${key}" ${isChecked}> <span>${currentUsersCachedMap[key].name} (@${key})</span>`;
+            checklist.appendChild(row);
+        });
+        groupModal.classList.remove('hidden');
+    }
 }
 
 const closeGroupBtn = document.getElementById('close-group-modal-btn');
@@ -469,9 +514,25 @@ if (saveGroupBtn) {
         if (!tempGroupAvatarBase64) tempGroupAvatarBase64 = DEFAULT_AVATAR;
         const marked = []; document.querySelectorAll('#group-members-checklist input:checked').forEach(i => marked.push(i.value));
         const myKey = currentUser.nickname.replace('@', ''); marked.push(myKey);
-        const groupKey = "group_" + Date.now();
-        await set(ref(db, `groups/${groupKey}`), { name: gName, avatar: tempGroupAvatarBase64, members: marked });
-        groupModal.classList.add('hidden'); NotificationSystem.showLocalToast("Grupo Creado");
+        
+        if (isEditingGroupId && oldGroupData) {
+            await update(ref(db, `groups/${isEditingGroupId}`), { name: gName, avatar: tempGroupAvatarBase64, members: marked });
+            
+            if (oldGroupData.name !== gName) {
+                push(ref(db, 'messages'), { sender: myKey, message: `${currentUser.name} ha cambiado el nombre del grupo de ${oldGroupData.name} a ${gName}`, type: "system", channel: "group", receiver: isEditingGroupId, timestamp: Date.now() });
+            }
+            if (oldGroupData.avatar !== tempGroupAvatarBase64 && tempGroupAvatarBase64 !== DEFAULT_AVATAR) {
+                push(ref(db, 'messages'), { sender: myKey, message: `Icono cambiado <img src='${oldGroupData.avatar}' class='sys-avatar-chg'> ➡️ <img src='${tempGroupAvatarBase64}' class='sys-avatar-chg'> por ${currentUser.name}`, type: "system-html", channel: "group", receiver: isEditingGroupId, timestamp: Date.now() });
+            }
+            
+            if (currentChatTarget === isEditingGroupId) document.getElementById('header-channel-title').textContent = `${gName} (Grupo)`;
+
+            groupModal.classList.add('hidden'); NotificationSystem.showLocalToast("Grupo Editado");
+        } else {
+            const groupKey = "group_" + Date.now();
+            await set(ref(db, `groups/${groupKey}`), { name: gName, avatar: tempGroupAvatarBase64, members: marked });
+            groupModal.classList.add('hidden'); NotificationSystem.showLocalToast("Grupo Creado");
+        }
     };
 }
 
@@ -523,7 +584,7 @@ const executeMessageSend = () => {
         else { payload.channel = "private"; payload.receiver = currentChatTarget; }
         
         push(ref(db, 'messages'), payload)
-            .then(() => { input.value = ''; })
+            .then(() => { input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden'); })
             .catch((err) => { alert("Error al enviar mensaje: " + err.message); });
     }
 };
@@ -532,7 +593,63 @@ const sendMsgBtn = document.getElementById('btn-send-message');
 if (sendMsgBtn) sendMsgBtn.onclick = executeMessageSend;
 
 const msgInput = document.getElementById('message-input');
-if (msgInput) msgInput.onkeydown = (e) => { if (e.key === 'Enter') executeMessageSend(); };
+const mentionsDropdown = document.getElementById('mentions-dropdown');
+
+if (msgInput) {
+    msgInput.onkeydown = (e) => { if (e.key === 'Enter') executeMessageSend(); };
+    msgInput.addEventListener('input', async () => {
+        const val = msgInput.value;
+        const cursorStart = msgInput.selectionStart;
+        const textBeforeCursor = val.slice(0, cursorStart);
+        const match = textBeforeCursor.match(/@([\w]*)$/); 
+
+        if (match && currentUser) {
+            const searchStr = match[1].toLowerCase();
+            let availableUsers = Object.keys(currentUsersCachedMap).filter(k => k !== currentUser.nickname.replace('@',''));
+
+            if (chatTargetType === 'group') {
+                const snapG = await get(child(dbRef, `groups/${currentChatTarget}`));
+                const gData = snapG.val();
+                if (gData && gData.members) {
+                    availableUsers = availableUsers.filter(k => gData.members.includes(k));
+                }
+            } else if (chatTargetType === 'private') {
+                 availableUsers = availableUsers.filter(k => k === currentChatTarget);
+            }
+
+            const filtered = availableUsers.filter(k => k.toLowerCase().includes(searchStr) || currentUsersCachedMap[k].name.toLowerCase().includes(searchStr));
+
+            if (filtered.length > 0 && mentionsDropdown) {
+                mentionsDropdown.innerHTML = '';
+                filtered.forEach(k => {
+                    const u = currentUsersCachedMap[k];
+                    const div = document.createElement('div');
+                    div.className = 'mention-item';
+                    div.innerHTML = `<img src="${u.avatar||DEFAULT_AVATAR}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;"> <span>${u.name} <span style="color:var(--text-muted); font-size:10px;">(@${k})</span></span>`;
+                    div.onclick = () => {
+                        const before = val.slice(0, cursorStart - match[0].length);
+                        const after = val.slice(cursorStart);
+                        msgInput.value = before + '@' + k + ' ' + after;
+                        mentionsDropdown.classList.add('hidden');
+                        msgInput.focus();
+                    };
+                    mentionsDropdown.appendChild(div);
+                });
+                mentionsDropdown.classList.remove('hidden');
+            } else if(mentionsDropdown) {
+                mentionsDropdown.classList.add('hidden');
+            }
+        } else if(mentionsDropdown) {
+            mentionsDropdown.classList.add('hidden');
+        }
+    });
+}
+
+document.addEventListener('click', (e) => {
+    if (mentionsDropdown && !mentionsDropdown.contains(e.target) && e.target !== msgInput) {
+        mentionsDropdown.classList.add('hidden');
+    }
+});
 
 const chatMediaInput = document.getElementById('chat-media-input');
 if (chatMediaInput) {
@@ -543,7 +660,7 @@ if (chatMediaInput) {
             
             optimizeAndCompressMedia(file, (b64) => {
                 const myKey = currentUser.nickname.replace('@', '');
-                const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "mediaUrl", mediaUrl: b64, timestamp: Date.now() };
+                const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "image", mediaUrl: b64, timestamp: Date.now() };
                 if (currentChatTarget === "global") payload.channel = "global";
                 else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
@@ -562,6 +679,7 @@ if (navGlobalBtn) {
         document.getElementById('header-channel-title').textContent = "SayChat // Global";
         document.getElementById('header-channel-avatar').classList.add('hidden');
         document.getElementById('header-channel-status').classList.add('hidden');
+        document.getElementById('btn-edit-active-group').classList.add('hidden');
         privateUnreadCounts["global"] = 0; 
         const badge = document.getElementById('unread-badge-global');
         if (badge) badge.classList.add('hidden');
