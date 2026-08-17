@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, get, child, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, onChildChanged, get, child, set, update, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // ==========================================================================
 // CONFIGURACIÓN DE FIREBASE
@@ -33,6 +33,7 @@ let tempGroupAvatarBase64 = "";
 let loginTimeMark = Date.now(); 
 let currentUsersCachedMap = {}; 
 let isMessageListenerAttached = false;
+let selectedMsgIdForContext = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
 
@@ -78,17 +79,31 @@ const optimizeAndCompressMedia = (file, callback) => {
     }
 };
 
+const parseMarkdown = (text) => {
+    if (!text) return "";
+    let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(/\*\*(.*?)\*\*/g, "<span class='md-bold'>$1</span>");
+    html = html.replace(/\*(.*?)\*/g, "<span class='md-italic'>$1</span>");
+    html = html.replace(/~(.*?)~/g, "<span class='md-strike'>$1</span>");
+    html = html.replace(/`(.*?)`/g, "<span class='md-code'>$1</span>");
+    return html;
+};
+
 // ==========================================================================
 // NOTIFICACIONES
 // ==========================================================================
 const NotificationSystem = {
-    trigger() {
+    trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
         const sound = document.getElementById('noti-sound');
         if (sound) { sound.currentTime = 0; sound.play().catch(() => {}); }
         if (!document.hasFocus()) {
             unreadCountGlobal++;
             document.title = `(${unreadCountGlobal}) ${baseTitle}`;
             this.updateFaviconBadge();
+
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body: bodyText, silent: true });
+            }
         }
     },
     reset() { unreadCountGlobal = 0; document.title = baseTitle; this.restoreFavicon(); },
@@ -127,7 +142,8 @@ const PresenceSystem = {
         this.updateState("online");
         document.addEventListener("visibilitychange", () => { this.updateState(document.visibilityState === "visible" ? "online" : "idle"); });
         const userKey = currentUser.nickname.replace('@', '');
-        window.addEventListener('beforeunload', () => { set(ref(db, `presence/${userKey}`), { status: "offline", lastSeen: Date.now() }); });
+        const userRef = ref(db, `presence/${userKey}`);
+        onDisconnect(userRef).set({ status: "offline", lastSeen: Date.now() });
     },
     listenPresence() {
         onValue(ref(db, 'users'), (snapshot) => { 
@@ -167,6 +183,8 @@ const PresenceSystem = {
                         document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                         existingRow.classList.add('active');
                         document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
+                        document.getElementById('header-channel-avatar').classList.add('hidden');
+                        document.getElementById('header-channel-status').classList.add('hidden');
                         privateUnreadCounts[gKey] = 0; 
                         const badge = document.getElementById(`unread-badge-${gKey}`);
                         if (badge) badge.classList.add('hidden');
@@ -202,6 +220,15 @@ const PresenceSystem = {
                     document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                     existingRow.classList.add('active');
                     document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
+                    
+                    const headAv = document.getElementById('header-channel-avatar');
+                    const headSt = document.getElementById('header-channel-status');
+                    if (headAv) { headAv.src = user.avatar || DEFAULT_AVATAR; headAv.classList.remove('hidden'); }
+                    if (headSt) {
+                        if (user.statusText) { headSt.textContent = user.statusText; headSt.classList.remove('hidden'); }
+                        else { headSt.classList.add('hidden'); }
+                    }
+
                     privateUnreadCounts[key] = 0; 
                     const badge = document.getElementById(`unread-badge-${key}`);
                     if (badge) badge.classList.add('hidden');
@@ -220,8 +247,11 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// RENDERIZADO DE MENSAJES
+// RENDERIZADO DE MENSAJES Y CONTEXTO
 // ==========================================================================
+const ctxMenu = document.getElementById('msg-context-menu');
+document.addEventListener('click', () => { if (ctxMenu) ctxMenu.classList.add('hidden'); });
+
 const renderSingleMessageAppend = (msgData) => {
     let shouldRender = false;
     if (currentChatTarget === "global" && msgData.channel === "global") shouldRender = true;
@@ -242,31 +272,74 @@ const renderSingleMessageAppend = (msgData) => {
 
     const liveAuthor = currentUsersCachedMap[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: DEFAULT_AVATAR };
     const msgRow = document.createElement('div'); msgRow.classList.add('msg-row');
-    if (currentUser && liveAuthor.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) msgRow.classList.add('msg-row-me');
+    
+    let isMe = false;
+    if (currentUser && liveAuthor.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) {
+        msgRow.classList.add('msg-row-me');
+        isMe = true;
+    }
 
     const time = new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    let contentHTML = `<p class="msg-body">${msgData.message}</p>`;
-    if (msgData.type === 'sticker') {
-        contentHTML = `<img src="${msgData.stickerUrl}" class="msg-sticker previewable-media-click" alt="Sticker">`;
-    } else if (msgData.type === 'image') {
-        contentHTML = `<img src="${msgData.mediaUrl}" class="msg-media-expanded previewable-media-click" alt="Foto">`;
-    } else if (msgData.type === 'video') {
-        contentHTML = `<video src="${msgData.mediaUrl}" controls playsinline muted class="msg-media-expanded previewable-media-click-video"></video>`;
+    let contentHTML = "";
+    if (msgData.isDeleted) {
+        contentHTML = `<p class="msg-body" style="font-style:italic; color:var(--text-muted);">Mensaje eliminado</p>`;
+    } else {
+        if (msgData.type === 'sticker') {
+            contentHTML = `<img src="${msgData.stickerUrl}" class="msg-sticker previewable-media-click" alt="Sticker">`;
+        } else if (msgData.type === 'image') {
+            contentHTML = `<img src="${msgData.mediaUrl}" class="msg-media-expanded previewable-media-click" alt="Foto">`;
+        } else if (msgData.type === 'video') {
+            contentHTML = `<video src="${msgData.mediaUrl}" controls playsinline muted class="msg-media-expanded previewable-media-click-video"></video>`;
+        } else {
+            contentHTML = `<p class="msg-body">${parseMarkdown(msgData.message)}</p>`;
+        }
     }
+
+    let editedTag = (!msgData.isDeleted && msgData.isEdited) ? `<div class="msg-edited-tag" style="font-size:10px; color:var(--text-muted); text-align:right; margin-top:3px; font-style:italic;">Mensaje Editado</div>` : "";
 
     msgRow.innerHTML = `
         <img src="${liveAuthor.avatar || DEFAULT_AVATAR}" class="custom-avatar" style="width:24px; height:24px; margin-bottom:2px;" alt="Avatar">
         <div class="msg-bubble">
             <div class="msg-meta"><span class="meta-name">${liveAuthor.name}</span><span class="meta-nick">${liveAuthor.nickname}</span></div>
             ${contentHTML}
+            ${editedTag}
             <span class="msg-time">${time}</span>
         </div>
     `;
+
+    if (isMe && !msgData.isDeleted) {
+        msgRow.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            selectedMsgIdForContext = msgData.key;
+            if (ctxMenu) {
+                ctxMenu.style.left = `${e.pageX}px`;
+                ctxMenu.style.top = `${e.pageY}px`;
+                ctxMenu.classList.remove('hidden');
+            }
+        });
+    }
+
     box.appendChild(msgRow);
     box.scrollTop = box.scrollHeight;
     attachUniversalMediaPreviewEvents();
 };
+
+const btnDeleteMsg = document.getElementById('btn-delete-msg');
+if (btnDeleteMsg) {
+    btnDeleteMsg.onclick = () => {
+        if (selectedMsgIdForContext) update(ref(db, `messages/${selectedMsgIdForContext}`), { isDeleted: true });
+    };
+}
+const btnEditMsg = document.getElementById('btn-edit-msg');
+if (btnEditMsg) {
+    btnEditMsg.onclick = () => {
+        if (selectedMsgIdForContext) {
+            const newText = prompt("Edita tu mensaje:");
+            if (newText) update(ref(db, `messages/${selectedMsgIdForContext}`), { message: newText, isEdited: true });
+        }
+    };
+}
 
 const reloadMessagesUI = () => {
     const box = document.getElementById('chat-box');
@@ -317,18 +390,23 @@ const closeModalBtn = document.getElementById('close-profile-modal-btn');
 const saveProfileBtn = document.getElementById('btn-save-profile-modal');
 const modalAvatarImg = document.getElementById('modal-user-avatar');
 const modalNameInput = document.getElementById('edit-name-input');
+const modalStatusInput = document.getElementById('edit-status-input');
+const removeStatusBtn = document.getElementById('btn-remove-status');
 
 if (openModalBtn) {
     openModalBtn.addEventListener('click', () => {
         if (currentUser) {
             modalAvatarImg.src = currentUser.avatar || DEFAULT_AVATAR; 
             modalNameInput.value = currentUser.name;
+            if(modalStatusInput) modalStatusInput.value = currentUser.statusText || "";
             tempModalAvatarBase64 = currentUser.avatar || DEFAULT_AVATAR; 
             modalOverlay.classList.remove('hidden');
         }
     });
 }
 if (closeModalBtn) closeModalBtn.addEventListener('click', () => modalOverlay.classList.add('hidden'));
+
+if (removeStatusBtn) removeStatusBtn.addEventListener('click', () => { if(modalStatusInput) modalStatusInput.value = ""; });
 
 const editAvatarInput = document.getElementById('edit-avatar');
 if (editAvatarInput) {
@@ -340,11 +418,12 @@ if (editAvatarInput) {
 if (saveProfileBtn) {
     saveProfileBtn.addEventListener('click', async () => {
         const newName = modalNameInput.value.trim();
+        const newStatus = modalStatusInput ? modalStatusInput.value.trim() : "";
         if (newName.length < 3 || newName.length > 50) return alert("El nombre debe tener entre 3 y 50 letras.");
         if (currentUser) {
             const userKey = currentUser.nickname.replace('@', '');
-            await update(ref(db, `users/${userKey}`), { name: newName, avatar: tempModalAvatarBase64 });
-            currentUser.name = newName; currentUser.avatar = tempModalAvatarBase64;
+            await update(ref(db, `users/${userKey}`), { name: newName, avatar: tempModalAvatarBase64, statusText: newStatus });
+            currentUser.name = newName; currentUser.avatar = tempModalAvatarBase64; currentUser.statusText = newStatus;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
             document.getElementById('current-user-avatar').src = currentUser.avatar;
             document.getElementById('current-user-name').textContent = currentUser.name;
@@ -464,7 +543,7 @@ if (chatMediaInput) {
             
             optimizeAndCompressMedia(file, (b64) => {
                 const myKey = currentUser.nickname.replace('@', '');
-                const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "image", mediaUrl: b64, timestamp: Date.now() };
+                const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "mediaUrl", mediaUrl: b64, timestamp: Date.now() };
                 if (currentChatTarget === "global") payload.channel = "global";
                 else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
@@ -481,6 +560,8 @@ if (navGlobalBtn) {
         navGlobalBtn.classList.add('active');
         document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
         document.getElementById('header-channel-title').textContent = "SayChat // Global";
+        document.getElementById('header-channel-avatar').classList.add('hidden');
+        document.getElementById('header-channel-status').classList.add('hidden');
         privateUnreadCounts["global"] = 0; 
         const badge = document.getElementById('unread-badge-global');
         if (badge) badge.classList.add('hidden');
@@ -512,21 +593,21 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
     }
 });
 
-// ESCUCHA DE MENSAJES EN TIEMPO REAL (SIN NOTIFICACIÓN EN CARGA INICIAL)
+// ESCUCHA DE MENSAJES EN TIEMPO REAL
 const initMessagesLiveStreamListener = () => {
     if (isMessageListenerAttached) return;
     isMessageListenerAttached = true;
 
     onChildAdded(ref(db, 'messages'), (snapshot) => {
-        const data = snapshot.val();
+        const data = { key: snapshot.key, ...snapshot.val() };
         allMessagesCache.push(data);
 
-        // SOLO SE ACTIVA NOTIFICACIÓN SI EL MENSAJE ES POSTERIOR AL LOGIN Y OCURRIÓ HACE MENOS DE 5 SEGUNDOS
         const isNewRealtimeMessage = data.timestamp > loginTimeMark && (Date.now() - data.timestamp) < 5000;
         const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
 
         if (isNewRealtimeMessage) {
-            if (!isMe) NotificationSystem.trigger();
+            const liveAuthor = currentUsersCachedMap[data.sender] || { name: "Usuario" };
+            if (!isMe) NotificationSystem.trigger(data.message, liveAuthor.name);
             if (data.channel === "global" && currentChatTarget !== "global") {
                 privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
                 const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
@@ -537,6 +618,15 @@ const initMessagesLiveStreamListener = () => {
             }
         }
         renderSingleMessageAppend(data);
+    });
+
+    onChildChanged(ref(db, 'messages'), (snapshot) => {
+        const data = { key: snapshot.key, ...snapshot.val() };
+        const index = allMessagesCache.findIndex(m => m.key === snapshot.key);
+        if (index !== -1) {
+            allMessagesCache[index] = data;
+            reloadMessagesUI();
+        }
     });
 };
 
@@ -557,7 +647,7 @@ if (btnRegister) {
             const snap = await get(child(dbRef, `users/${rawNickname}`)); 
             if (snap.exists()) return alert("El nombre de usuario @" + rawNickname + " ya existe.");
             
-            const userData = { name, nickname: '@' + rawNickname, password, avatar: finalAvatar };
+            const userData = { name, nickname: '@' + rawNickname, password, avatar: finalAvatar, statusText: "" };
             await set(ref(db, `users/${rawNickname}`), userData);
             
             push(ref(db, 'messages'), { sender: "system", message: `✨ ¡${name} se ha unido a SayChat! Denle una cálida bienvenida.`, type: "system", channel: "global", timestamp: Date.now() });
@@ -600,11 +690,13 @@ const initAppAfterLogin = async () => {
     document.getElementById('current-user-name').textContent = currentUser.name; 
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
-    // 1. CARGAR USUARIOS EN CACHÉ
+    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+    }
+
     const snapUsers = await get(child(dbRef, 'users'));
     currentUsersCachedMap = snapUsers.val() || {};
     
-    // 2. INICIAR OYENTE DE MENSAJES
     initMessagesLiveStreamListener();
     
     PresenceSystem.init(); 
