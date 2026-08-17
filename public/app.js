@@ -1,5 +1,5 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, onChildChanged, get, child, set, update, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js)";
+import { getDatabase, ref, push, onChildAdded, onChildChanged, get, child, set, update, remove, onValue, onDisconnect } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js)";
 
 // ==========================================================================
 // CONFIGURACIÓN DE FIREBASE
@@ -7,7 +7,7 @@ import { getDatabase, ref, push, onChildAdded, onChildChanged, get, child, set, 
 const firebaseConfig = {
     apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
     authDomain: "seichato.firebaseapp.com",
-    databaseURL: "https://seichato-default-rtdb.firebaseio.com",
+    databaseURL: "[https://seichato-default-rtdb.firebaseio.com](https://seichato-default-rtdb.firebaseio.com)",
     projectId: "seichato",
     storageBucket: "seichato.firebasestorage.app",
     messagingSenderId: "141497749351",
@@ -38,8 +38,8 @@ let selectedGroupIdForContext = null;
 let isEditingGroupId = null;
 let oldGroupData = null;
 
-const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
-const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a25afa'><path d='M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2ZM5.5 5.5L7 9L8.5 5.5L12 4L8.5 2.5L7 -1L5.5 2.5L2 4L5.5 5.5Z'/></svg>";
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' viewBox='0 0 24 24' fill='%23a25afa'><path d='M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2ZM5.5 5.5L7 9L8.5 5.5L12 4L8.5 2.5L7 -1L5.5 2.5L2 4L5.5 5.5Z'/></svg>";
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
