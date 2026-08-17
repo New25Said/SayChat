@@ -33,7 +33,20 @@ app.post('/api/gemini', async (req, res) => {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   // Lista de modelos Fallback (Del más capaz hasta la familia 1)
-  const models = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'];
+  const models = [
+  // --- GENERACIÓN FRONTERA ACTUAL (Gemini 3.x) ---
+  'gemini-3.7-flash',       // Último modelo insignia, optimizado para tareas complejas y código (Agosto 2026)
+  'gemini-3.6-flash',       // Alta velocidad y razonamiento avanzado de pasos múltiples
+  'gemini-3.5-flash',       // Excelente balance entre velocidad e inteligencia general
+  'gemini-3.5-flash-lite',  // Variante ultrarrápida y económica para alto volumen de peticiones
+  'gemini-3.1-flash-lite',  // Rendimiento de frontera a un costo mínimo
+
+  // --- GENERACIÓN DE RESPALDO/FALLBACK ESTABLE (Gemini 2.5) ---
+  'gemini-2.5-pro',         // El más capaz de la generación anterior para razonamiento complejo
+  'gemini-2.5-flash',        // Modelo rápido y multimodal clásico de producción
+  'gemini-2.5-flash-lite'   // Última opción de contingencia antes de un fallo total del servicio
+];
+
   
   let responseText = "";
   let success = false;
