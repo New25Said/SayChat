@@ -856,21 +856,38 @@ const initMessagesLiveStreamListener = () => {
         const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
 
         if (isNewRealtimeMessage) {
-            let liveAuthor;
-            if (data.sender === 'gemini') liveAuthor = { name: "Gemini AI" };
-            else liveAuthor = currentUsersCachedMap[data.sender] || { name: "Usuario" };
+            const myKey = currentUser ? currentUser.nickname.replace('@', '') : '';
+            
+            // 1. Verificamos si este mensaje nos incumbe
+            let isForMe = false;
+            if (data.channel === 'global') isForMe = true;
+            else if (data.channel === 'group' && document.getElementById(`group-row-${data.receiver}`)) isForMe = true;
+            else if (data.channel === 'private' && (data.receiver === myKey || data.sender === myKey)) isForMe = true;
+            else if (data.channel === 'gemini' && (data.receiver === myKey || data.sender === myKey)) isForMe = true;
 
-            if (!isMe) NotificationSystem.trigger(data.message, liveAuthor.name);
-            if (data.channel === "global" && currentChatTarget !== "global") {
-                privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
-                const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
-            } else if (data.channel === "group" && currentChatTarget !== data.receiver) { 
-                privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; 
-            } else if (data.channel === "private" && data.sender !== currentChatTarget && !isMe) { 
-                privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; 
-            } else if (data.channel === "gemini" && data.sender === "gemini" && currentChatTarget !== "gemini" && data.receiver === (currentUser ? currentUser.nickname.replace('@','') : '')) { 
-                privateUnreadCounts["gemini"] = (privateUnreadCounts["gemini"] || 0) + 1; 
-                const gb = document.getElementById('unread-badge-gemini'); if (gb) { gb.textContent = privateUnreadCounts["gemini"]; gb.classList.remove('hidden'); }
+            // 2. Ejecutar sonido y notificaciones SOLO si el mensaje nos incumbe
+            if (isForMe) {
+                let liveAuthor;
+                if (data.sender === 'gemini') liveAuthor = { name: "Gemini AI" };
+                else liveAuthor = currentUsersCachedMap[data.sender] || { name: "Usuario" };
+
+                // Si no lo mandé yo mismo, hacer ruido
+                if (!isMe) NotificationSystem.trigger(data.message, liveAuthor.name);
+
+                // Sistema de globos (badges) no leídos
+                if (data.channel === "global" && currentChatTarget !== "global") {
+                    privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
+                    const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
+                } else if (data.channel === "group" && currentChatTarget !== data.receiver && !isMe) { 
+                    privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; 
+                    const gb = document.getElementById(`unread-badge-${data.receiver}`); if (gb) { gb.textContent = privateUnreadCounts[data.receiver]; gb.classList.remove('hidden'); }
+                } else if (data.channel === "private" && data.sender !== currentChatTarget && !isMe) { 
+                    privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; 
+                    const gb = document.getElementById(`unread-badge-${data.sender}`); if (gb) { gb.textContent = privateUnreadCounts[data.sender]; gb.classList.remove('hidden'); }
+                } else if (data.channel === "gemini" && data.sender === "gemini" && currentChatTarget !== "gemini" && data.receiver === myKey) { 
+                    privateUnreadCounts["gemini"] = (privateUnreadCounts["gemini"] || 0) + 1; 
+                    const gb = document.getElementById('unread-badge-gemini'); if (gb) { gb.textContent = privateUnreadCounts["gemini"]; gb.classList.remove('hidden'); }
+                }
             }
         }
         renderSingleMessageAppend(data);
