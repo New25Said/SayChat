@@ -39,6 +39,7 @@ let isEditingGroupId = null;
 let oldGroupData = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a25afa'><path d='M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2ZM5.5 5.5L7 9L8.5 5.5L12 4L8.5 2.5L7 -1L5.5 2.5L2 4L5.5 5.5Z'/></svg>";
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -199,6 +200,7 @@ const PresenceSystem = {
                 existingRow.addEventListener('click', () => {
                     currentChatTarget = gKey; chatTargetType = "group";
                     document.getElementById('btn-nav-global').classList.remove('active');
+                    const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
                     document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                     existingRow.classList.add('active');
                     document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
@@ -252,6 +254,7 @@ const PresenceSystem = {
                 existingRow.addEventListener('click', () => {
                     currentChatTarget = key; chatTargetType = "private";
                     document.getElementById('btn-nav-global').classList.remove('active');
+                    const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
                     document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
                     existingRow.classList.add('active');
                     document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
@@ -315,6 +318,10 @@ const renderSingleMessageAppend = (msgData) => {
         const myKey = currentUser ? currentUser.nickname.replace('@', '') : '';
         if ((msgData.sender === myKey && msgData.receiver === currentChatTarget) || (msgData.sender === currentChatTarget && msgData.receiver === myKey)) shouldRender = true;
     } else if (chatTargetType === "group" && msgData.channel === "group" && msgData.receiver === currentChatTarget) shouldRender = true;
+    else if (chatTargetType === "gemini" && msgData.channel === "gemini") {
+        const myKey = currentUser ? currentUser.nickname.replace('@', '') : '';
+        if ((msgData.sender === myKey && msgData.receiver === 'gemini') || (msgData.sender === 'gemini' && msgData.receiver === myKey)) shouldRender = true;
+    }
 
     if (!shouldRender) return;
 
@@ -331,7 +338,13 @@ const renderSingleMessageAppend = (msgData) => {
         box.appendChild(sysDiv); box.scrollTop = box.scrollHeight; return;
     }
 
-    const liveAuthor = currentUsersCachedMap[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: DEFAULT_AVATAR };
+    let liveAuthor;
+    if (msgData.sender === 'gemini') {
+        liveAuthor = { name: "Gemini AI", nickname: "@gemini", avatar: GEMINI_AVATAR };
+    } else {
+        liveAuthor = currentUsersCachedMap[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: DEFAULT_AVATAR };
+    }
+
     const msgRow = document.createElement('div'); msgRow.classList.add('msg-row');
     
     let isMe = false;
@@ -399,7 +412,7 @@ const renderSingleMessageAppend = (msgData) => {
         setTimeout(() => {
             const bubble = msgRow.querySelector('.msg-mention-glow');
             if (bubble) bubble.classList.remove('msg-mention-glow');
-        }, 5 * 60 * 1000); // 5 minutos
+        }, 5 * 60 * 1000); // Se elimina el marco a los 5 minutos
     }
 
     attachUniversalMediaPreviewEvents();
@@ -649,10 +662,37 @@ const executeMessageSend = () => {
         const payload = { sender: myKey, message: msg, type: 'text', timestamp: Date.now() };
         if (currentChatTarget === "global") payload.channel = "global";
         else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
+        else if (chatTargetType === "gemini") { payload.channel = "gemini"; payload.receiver = "gemini"; }
         else { payload.channel = "private"; payload.receiver = currentChatTarget; }
         
         push(ref(db, 'messages'), payload)
-            .then(() => { input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden'); })
+            .then(() => { 
+                input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden'); 
+                
+                // IA GEMINI CALL
+                if (chatTargetType === "gemini") {
+                    const history = allMessagesCache
+                        .filter(m => m.channel === 'gemini' && m.type === 'text' && ((m.sender === myKey && m.receiver === 'gemini') || (m.sender === 'gemini' && m.receiver === myKey)))
+                        .map(m => ({
+                            role: m.sender === 'gemini' ? 'model' : 'user',
+                            parts: [{ text: m.message }]
+                        }));
+                    
+                    history.pop(); // Sacar el mensaje que acabamos de mandar
+
+                    fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg, history: history })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.reply) {
+                            push(ref(db, 'messages'), { sender: 'gemini', receiver: myKey, channel: 'gemini', message: data.reply, type: 'text', timestamp: Date.now() });
+                        }
+                    }).catch(console.error);
+                }
+            })
             .catch((err) => { alert("Error al enviar mensaje: " + err.message); });
     }
 };
@@ -731,6 +771,7 @@ if (chatMediaInput) {
                 const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "image", mediaUrl: b64, timestamp: Date.now() };
                 if (currentChatTarget === "global") payload.channel = "global";
                 else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
+                else if (chatTargetType === "gemini") { payload.channel = "gemini"; payload.receiver = "gemini"; }
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
                 push(ref(db, 'messages'), payload);
             });
@@ -743,6 +784,7 @@ if (navGlobalBtn) {
     navGlobalBtn.onclick = () => {
         currentChatTarget = "global"; chatTargetType = "global";
         navGlobalBtn.classList.add('active');
+        const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
         document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-global') r.classList.remove('active'); });
         document.getElementById('header-channel-title').textContent = "SayChat // Global";
         document.getElementById('header-channel-avatar').classList.add('hidden');
@@ -750,6 +792,27 @@ if (navGlobalBtn) {
         document.getElementById('btn-edit-active-group').classList.add('hidden');
         privateUnreadCounts["global"] = 0; 
         const badge = document.getElementById('unread-badge-global');
+        if (badge) badge.classList.add('hidden');
+        reloadMessagesUI();
+    };
+}
+
+const navGeminiBtn = document.getElementById('btn-nav-gemini');
+if (navGeminiBtn) {
+    navGeminiBtn.onclick = () => {
+        currentChatTarget = "gemini"; chatTargetType = "gemini";
+        navGeminiBtn.classList.add('active');
+        document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-gemini') r.classList.remove('active'); });
+        document.getElementById('header-channel-title').textContent = "SayChat // Gemini AI";
+        const headAv = document.getElementById('header-channel-avatar');
+        headAv.src = GEMINI_AVATAR;
+        headAv.classList.remove('hidden');
+        const headSt = document.getElementById('header-channel-status');
+        headSt.textContent = "IA Oficial";
+        headSt.classList.remove('hidden');
+        document.getElementById('btn-edit-active-group').classList.add('hidden');
+        privateUnreadCounts["gemini"] = 0; 
+        const badge = document.getElementById('unread-badge-gemini');
         if (badge) badge.classList.add('hidden');
         reloadMessagesUI();
     };
@@ -771,6 +834,7 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
                 const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: b64, timestamp: Date.now() };
                 if (currentChatTarget === "global") payload.channel = "global";
                 else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
+                else if (chatTargetType === "gemini") { payload.channel = "gemini"; payload.receiver = "gemini"; }
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
                 push(ref(db, 'messages'), payload); document.getElementById('stickers-panel').classList.add('hidden');
             }
@@ -792,15 +856,21 @@ const initMessagesLiveStreamListener = () => {
         const isMe = currentUser && ("@" + data.sender).toLowerCase() === currentUser.nickname.toLowerCase();
 
         if (isNewRealtimeMessage) {
-            const liveAuthor = currentUsersCachedMap[data.sender] || { name: "Usuario" };
+            let liveAuthor;
+            if (data.sender === 'gemini') liveAuthor = { name: "Gemini AI" };
+            else liveAuthor = currentUsersCachedMap[data.sender] || { name: "Usuario" };
+
             if (!isMe) NotificationSystem.trigger(data.message, liveAuthor.name);
             if (data.channel === "global" && currentChatTarget !== "global") {
                 privateUnreadCounts["global"] = (privateUnreadCounts["global"] || 0) + 1;
                 const gb = document.getElementById('unread-badge-global'); if (gb) { gb.textContent = privateUnreadCounts["global"]; gb.classList.remove('hidden'); }
             } else if (data.channel === "group" && currentChatTarget !== data.receiver) { 
                 privateUnreadCounts[data.receiver] = (privateUnreadCounts[data.receiver] || 0) + 1; 
-            } else if (data.channel === "private" && data.sender !== currentChatTarget) { 
+            } else if (data.channel === "private" && data.sender !== currentChatTarget && !isMe) { 
                 privateUnreadCounts[data.sender] = (privateUnreadCounts[data.sender] || 0) + 1; 
+            } else if (data.channel === "gemini" && data.sender === "gemini" && currentChatTarget !== "gemini" && data.receiver === (currentUser ? currentUser.nickname.replace('@','') : '')) { 
+                privateUnreadCounts["gemini"] = (privateUnreadCounts["gemini"] || 0) + 1; 
+                const gb = document.getElementById('unread-badge-gemini'); if (gb) { gb.textContent = privateUnreadCounts["gemini"]; gb.classList.remove('hidden'); }
             }
         }
         renderSingleMessageAppend(data);
