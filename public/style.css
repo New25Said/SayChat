@@ -198,7 +198,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .contact-list-row.active .status-indicator-dot { border-color: #170d14; }
 .status-indicator-dot.online { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); } 
 .status-indicator-dot.idle { background: #f59e0b; }   
-.status-indicator-dot.offline { background: transparent; border: 2px solid #71717a; } 
+.status-indicator-dot.offline { background: #71717a; border: 2.5px solid #0f0f16; } 
 
 .contact-info-block { flex: 1; min-width: 0; }
 .contact-info-block h4 { font-size: 14px; color: var(--text-main); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -273,6 +273,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 
 .msg-system-line { align-self: center; background: rgba(128, 0, 32, 0.25); border: 1px solid rgba(163, 13, 54, 0.4); font-size: 11px; padding: 4px 12px; border-radius: 8px; color: #ff99b3; margin: 6px 0; text-align: center; max-width: 90%; backdrop-filter: blur(10px); animation: msgSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .msg-time { display: block; font-size: 8.5px; color: var(--text-muted); text-align: right; margin-top: 2px; }
+.sys-avatar-chg { width: 18px; height: 18px; border-radius: 50%; vertical-align: middle; margin: 0 4px; object-fit: cover; border: 1px solid var(--border-clean); }
 
 /* STICKERS POPUP */
 .stickers-popup { 
@@ -306,6 +307,31 @@ input[type="text"]:focus, input[type="password"]:focus {
     box-sizing: border-box; 
     margin: 0 !important; 
     border-top: 1px solid var(--border-clean);
+    position: relative;
+}
+
+#mentions-dropdown {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50px;
+    background: rgba(15, 15, 22, 0.95);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-accent);
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 250px;
+    z-index: 1000;
+    box-shadow: var(--glass-shadow);
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+}
+.mention-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border-radius: 4px; transition: var(--ease-normal); color: var(--text-main); font-weight: 500; font-size: 12px;
+}
+.mention-item:hover {
+    background: rgba(230, 25, 85, 0.2);
 }
 
 .btn-stk-trigger { 
