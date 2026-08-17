@@ -21,7 +21,7 @@ app.get('/ping', (req, res) => {
 });
 
 // =========================================================================
-// API DE GEMINI CON SISTEMA FALLBACK
+// API DE GEMINI CON SISTEMA FALLBACK Y FORMATO CUSTOM
 // =========================================================================
 app.post('/api/gemini', async (req, res) => {
   const { message, history } = req.body;
@@ -32,8 +32,7 @@ app.post('/api/gemini', async (req, res) => {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  // Lista de modelos Fallback (Del más capaz hasta la familia 1)
-  const models = [
+    const models = [
   // --- GENERACIÓN FRONTERA ACTUAL (Gemini 3.x) ---
   'gemini-3.7-flash',       // Último modelo insignia, optimizado para tareas complejas y código (Agosto 2026)
   'gemini-3.6-flash',       // Alta velocidad y razonamiento avanzado de pasos múltiples
@@ -49,17 +48,34 @@ app.post('/api/gemini', async (req, res) => {
 ];
 
   
+  // Forzamos a la IA a solo usar el markdown de SayChat
+  const systemPrompt = "Eres Gemini, el asistente virtual de SayChat. MUY IMPORTANTE: Para dar formato a tus respuestas, SOLO tienes permitido usar estas 4 reglas de Markdown personalizado:\n- Negrita: **texto**\n- Cursiva: *texto*\n- Tachado: ~texto~\n- Código en línea: `texto`\nESTÁ ESTRICTAMENTE PROHIBIDO usar cualquier otro Markdown estándar como almohadillas (#) para títulos, asteriscos/guiones al inicio de línea para listas, o bloques de código de tres comillas (```). Escribe como en un chat normal.";
+
   let responseText = "";
   let success = false;
 
   for (const modelName of models) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
+      let modelConfig = { model: modelName };
+      
+      // La familia 1.5 acepta instrucciones de sistema nativas
+      if (modelName.includes('1.5')) {
+          modelConfig.systemInstruction = systemPrompt;
+      }
+
+      const model = genAI.getGenerativeModel(modelConfig);
       const chat = model.startChat({ history: history || [] });
-      const result = await chat.sendMessage(message);
+      
+      let msgToSend = message;
+      // Para la familia 1.0 (fallback), inyectamos la orden directamente en el mensaje
+      if (!modelName.includes('1.5')) {
+          msgToSend = message + "\n\n[INSTRUCCIÓN DE SISTEMA: " + systemPrompt + "]";
+      }
+
+      const result = await chat.sendMessage(msgToSend);
       responseText = result.response.text();
       success = true;
-      break; // Detener el ciclo si este modelo funcionó correctamente
+      break; 
     } catch (error) {
       console.error(`[Gemini Fallback] El modelo ${modelName} falló:`, error.message);
     }
