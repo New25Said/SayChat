@@ -13,6 +13,12 @@
 
     <audio id="noti-sound" src="noti.mp3" preload="auto"></audio>
 
+    <!-- MENU CONTEXTUAL PARA MENSAJES -->
+    <div id="msg-context-menu" class="hidden animate-fade" style="position:absolute; background:var(--bg-sidebar); border:1px solid var(--border-accent); border-radius:8px; padding:4px; z-index:4000; backdrop-filter:blur(15px); box-shadow:var(--glass-shadow); min-width: 140px;">
+        <div id="btn-edit-msg" style="padding:10px 14px; font-size:12px; cursor:pointer; color:var(--text-main); border-bottom:1px solid var(--border-clean); transition: background 0.2s; border-radius: 4px 4px 0 0;">Editar Mensaje</div>
+        <div id="btn-delete-msg" style="padding:10px 14px; font-size:12px; cursor:pointer; color:#ff4d4d; transition: background 0.2s; border-radius: 0 0 4px 4px;">Eliminar Mensaje</div>
+    </div>
+
     <!-- PANTALLA DE ACCESO -->
     <div id="auth-screen" class="window-screen">
         <div class="whatsapp-auth-card animate-fade">
@@ -110,8 +116,14 @@
             <!-- CHAT VIEWPORT -->
             <section class="whatsapp-viewport">
                 <header class="viewport-header">
-                    <div class="active-chat-meta">
-                        <h2 id="header-channel-title">SayChat // Global</h2>
+                    <div class="active-chat-meta" style="display:flex; align-items:center; gap:12px;">
+                        <img id="header-channel-avatar" src="" class="custom-avatar hidden" style="width:36px; height:36px;" alt="Avatar Header">
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <h2 id="header-channel-title">SayChat // Global</h2>
+                                <span id="header-channel-status" class="hidden" style="background:rgba(255,255,255,0.1); padding:3px 10px; border-radius:20px; font-size:11px; border:1px solid var(--border-clean);"></span>
+                            </div>
+                        </div>
                     </div>
                 </header>
                 
@@ -166,6 +178,11 @@
                 <div class="modal-input-section">
                     <label class="input-label-hint">Nombre de usuario (en pantalla)</label>
                     <input type="text" id="edit-name-input" placeholder="Tu nombre">
+                </div>
+                <div class="modal-input-section">
+                    <label class="input-label-hint">Estado Personalizado</label>
+                    <input type="text" id="edit-status-input" placeholder="Ej. Trabajando...">
+                    <button type="button" id="btn-remove-status" class="file-btn" style="margin-top:8px; width:100%;">Eliminar Estado</button>
                 </div>
                 <button type="button" id="btn-save-profile-modal" class="btn-whatsapp">Guardar Cambios</button>
             </div>
