@@ -45,6 +45,7 @@ app.post('/api/gemini', async (req, res) => {
   'gemini-2.5-pro',         // El más capaz de la generación anterior para razonamiento complejo
   'gemini-2.5-flash',        // Modelo rápido y multimodal clásico de producción
   'gemini-2.5-flash-lite'   // Última opción de contingencia antes de un fallo total del servicio
+    'gemini-flash-latest'
 ];
 
   
