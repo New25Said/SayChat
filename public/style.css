@@ -64,6 +64,17 @@ html, body {
 .animate-fade { animation: normalShow 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes normalShow { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
 
+@keyframes msgSlideIn {
+    0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Estilos para Markdown Estilizado */
+.md-bold { font-weight: bold; color: #ffffff; }
+.md-italic { font-style: italic; }
+.md-strike { text-decoration: line-through; opacity: 0.7; }
+.md-code { background: rgba(163, 13, 54, 0.2); padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #ff99b3; border: 1px solid rgba(230, 25, 85, 0.3); }
+
 /* CARDS ACCESO */
 .window-screen { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
 .whatsapp-auth-card { 
@@ -128,7 +139,8 @@ input[type="text"]:focus, input[type="password"]:focus {
 .switch-text { margin-top: 20px; font-size: 11.5px; color: var(--text-muted); text-align: center; }
 .switch-text span { color: var(--accent); cursor: pointer; font-weight: 600; }
 .whatsapp-file-zone { display: flex; align-items: center; justify-content: space-between; background: var(--bg-input); padding: 10px 14px; margin-bottom: 18px; border-radius: 10px; border: 1px solid var(--border-clean); }
-.file-btn { font-size: 11px; font-weight: 600; color: var(--text-main); cursor: pointer; padding: 6px 12px; border: 1px solid var(--border-clean); text-align: center; border-radius: 6px; background: rgba(255, 255, 255, 0.05); }
+.file-btn { font-size: 11px; font-weight: 600; color: var(--text-main); cursor: pointer; padding: 6px 12px; border: 1px solid var(--border-clean); text-align: center; border-radius: 6px; background: rgba(255, 255, 255, 0.05); transition: var(--ease-normal); }
+.file-btn:hover { background: rgba(255, 255, 255, 0.1); }
 
 .custom-avatar { width: 44px; height: 44px; object-fit: cover; border-radius: 50% !important; background: #222; border: 1px solid var(--border-clean); position: relative; }
 
@@ -181,6 +193,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 .status-indicator-dot {
     position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; 
     border-radius: 50% !important; background: #71717a; border: 2.5px solid #0f0f16; z-index: 5;
+    transition: var(--ease-normal);
 }
 .contact-list-row.active .status-indicator-dot { border-color: #170d14; }
 .status-indicator-dot.online { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); } 
@@ -216,6 +229,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     align-items: flex-end; 
     margin-bottom: 1px; 
     gap: 6px; 
+    animation: msgSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 .msg-row-me { 
     align-self: flex-end; 
@@ -233,6 +247,7 @@ input[type="text"]:focus, input[type="password"]:focus {
     border-radius: 4px 10px 10px 10px; 
     box-shadow: 0 2px 10px rgba(0,0,0,0.8); 
     position: relative; 
+    transition: var(--ease-normal);
 }
 
 .msg-row-me .msg-bubble { 
@@ -253,10 +268,10 @@ input[type="text"]:focus, input[type="password"]:focus {
 .msg-sticker { max-width: 90px; max-height: 90px; display: block; margin-top: 3px; border-radius: 6px; cursor: pointer; transition: transform 0.1s ease; }
 .msg-sticker:hover { transform: scale(1.04); }
 
-.msg-media-expanded { max-width: 260px; max-height: 180px; object-fit: cover; border-radius: 8px; display: block; margin-top: 4px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: transform 0.1s ease; }
+.msg-media-expanded { max-width: 320px; max-height: 280px; object-fit: cover; border-radius: 8px; display: block; margin-top: 4px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: transform 0.1s ease; }
 .msg-media-expanded:hover { transform: scale(1.02); }
 
-.msg-system-line { align-self: center; background: rgba(128, 0, 32, 0.25); border: 1px solid rgba(163, 13, 54, 0.4); font-size: 11px; padding: 4px 12px; border-radius: 8px; color: #ff99b3; margin: 6px 0; text-align: center; max-width: 90%; backdrop-filter: blur(10px); }
+.msg-system-line { align-self: center; background: rgba(128, 0, 32, 0.25); border: 1px solid rgba(163, 13, 54, 0.4); font-size: 11px; padding: 4px 12px; border-radius: 8px; color: #ff99b3; margin: 6px 0; text-align: center; max-width: 90%; backdrop-filter: blur(10px); animation: msgSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .msg-time { display: block; font-size: 8.5px; color: var(--text-muted); text-align: right; margin-top: 2px; }
 
 /* STICKERS POPUP */
@@ -354,17 +369,18 @@ input[type="text"]:focus, input[type="password"]:focus {
 /* MEDIOS Y VISOR */
 #media-viewer-container img, 
 #media-viewer-container video {
-    max-width: 140px !important;   
-    max-height: 140px !important;  
+    max-width: 85vw !important;   
+    max-height: 85vh !important;  
     object-fit: contain;
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     background: rgba(15, 15, 22, 0.9);
     border: 1px solid var(--border-accent);
+    animation: normalShow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* MODALES GLASS */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 6, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(12px); }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 6, 0.85); display: flex; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(12px); transition: var(--ease-normal); }
 .modal-card { 
     background: rgba(15, 15, 22, 0.85); 
     backdrop-filter: var(--glass-blur);
@@ -377,18 +393,20 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 .modal-header { background: var(--bg-header); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-clean); }
 .modal-header h3 { font-size: 15px; font-weight: 600; color: var(--text-main); }
-.btn-close-modal { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; }
+.btn-close-modal { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; transition: var(--ease-normal); }
+.btn-close-modal:hover { color: var(--accent); transform: scale(1.1); }
 .modal-body { padding: 24px; display: flex; flex-direction: column; align-items: center; }
 .modal-avatar-section { margin-bottom: 20px; position: relative; }
 .modal-avatar-label { display: block; position: relative; cursor: pointer; border-radius: 50% !important; overflow: hidden; }
-.modal-preview-img { width: 90px; height: 90px; border: 2.5px solid var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
-.avatar-overlay-hint { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0, 0, 0, 0.7); color: white; font-size: 10px; text-align: center; padding: 5px 0; font-weight: 600; }
+.modal-preview-img { width: 90px; height: 90px; border: 2.5px solid var(--accent); box-shadow: 0 0 15px var(--accent-glow); transition: var(--ease-normal); }
+.modal-preview-img:hover { transform: scale(1.05); }
+.avatar-overlay-hint { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0, 0, 0, 0.7); color: white; font-size: 10px; text-align: center; padding: 5px 0; font-weight: 600; transition: var(--ease-normal); }
 .modal-input-section { width: 100%; margin-bottom: 20px; }
 .input-label-hint { font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
 
 .members-checklist-box { width: 100%; max-height: 120px; overflow-y: auto; background: var(--bg-input); border: 1px solid var(--border-clean); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
-.checklist-row-item { display: flex; align-items: center; gap: 10px; padding: 6px; cursor: pointer; border-radius: 4px; }
+.checklist-row-item { display: flex; align-items: center; gap: 10px; padding: 6px; cursor: pointer; border-radius: 4px; transition: var(--ease-normal); }
 .checklist-row-item:hover { background: rgba(255,255,255,0.06); }
 .checklist-row-item input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent); }
 
-.toast-popup { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--guinda-gradient); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 7px 16px; font-size: 12px; border-radius: 30px; z-index: 3000; box-shadow: 0 4px 15px rgba(128, 0, 32, 0.5); }
+.toast-popup { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--guinda-gradient); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 7px 16px; font-size: 12px; border-radius: 30px; z-index: 3000; box-shadow: 0 4px 15px rgba(128, 0, 32, 0.5); animation: normalShow 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
