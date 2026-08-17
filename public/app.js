@@ -34,6 +34,7 @@ let loginTimeMark = Date.now();
 let currentUsersCachedMap = {}; 
 let isMessageListenerAttached = false;
 let selectedMsgIdForContext = null;
+let selectedGroupIdForContext = null;
 let isEditingGroupId = null;
 let oldGroupData = null;
 
@@ -89,6 +90,11 @@ const parseMarkdown = (text) => {
     html = html.replace(/~(.*?)~/g, "<span class='md-strike'>$1</span>");
     html = html.replace(/`(.*?)`/g, "<span class='md-code'>$1</span>");
     return html;
+};
+
+const parseMentions = (text) => {
+    if (!text) return "";
+    return text.replace(/@([\w]+)/g, "<span class='mentioned-text'>@$1</span>");
 };
 
 // ==========================================================================
@@ -163,45 +169,68 @@ const PresenceSystem = {
         const presenceData = snapPresence.val() || {};
 
         const snapGroups = await get(child(dbRef, 'groups'));
-        if (snapGroups.exists()) {
-            const allGroups = snapGroups.val();
-            Object.keys(allGroups).forEach(gKey => {
-                const group = allGroups[gKey];
+        const allGroups = snapGroups.exists() ? snapGroups.val() : {};
+
+        // Limpiar grupos del DOM que hayan sido eliminados o donde ya no pertenezca
+        document.querySelectorAll('.contact-list-row').forEach(row => {
+            if (row.id.startsWith('group-row-')) {
+                const gKey = row.id.replace('group-row-', '');
                 const myKey = currentUser.nickname.replace('@', '');
-                if (!group.members || !group.members.includes(myKey)) {
-                    const rowOld = document.getElementById(`group-row-${gKey}`); if (rowOld) rowOld.remove(); return;
+                if (!allGroups[gKey] || !allGroups[gKey].members || !allGroups[gKey].members.includes(myKey)) {
+                    row.remove();
                 }
-                let existingRow = document.getElementById(`group-row-${gKey}`);
-                if (!existingRow) {
-                    existingRow = document.createElement('div'); existingRow.id = `group-row-${gKey}`; existingRow.classList.add('contact-list-row');
-                    existingRow.innerHTML = `
-                        <div class="contact-avatar-wrapper"><img src="${group.avatar || DEFAULT_AVATAR}" class="custom-avatar" alt="Group"></div>
-                        <div class="contact-info-block"><h4>${group.name}</h4><p class="contact-sub" style="color:var(--accent)">👥 Grupo de SayChat</p></div>
-                        <span class="private-unread-badge hidden" id="unread-badge-${gKey}">0</span>
-                    `;
-                    existingRow.addEventListener('click', () => {
-                        currentChatTarget = gKey; chatTargetType = "group";
-                        document.getElementById('btn-nav-global').classList.remove('active');
-                        document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
-                        existingRow.classList.add('active');
-                        document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
-                        document.getElementById('header-channel-avatar').classList.add('hidden');
-                        document.getElementById('header-channel-status').classList.add('hidden');
-                        document.getElementById('btn-edit-active-group').classList.remove('hidden');
-                        privateUnreadCounts[gKey] = 0; 
-                        const badge = document.getElementById(`unread-badge-${gKey}`);
-                        if (badge) badge.classList.add('hidden');
-                        reloadMessagesUI();
-                    });
-                    listContainer.appendChild(existingRow);
-                } else {
-                    const textName = existingRow.querySelector('h4'); if (textName) textName.textContent = group.name;
-                    const imgAv = existingRow.querySelector('.custom-avatar'); if (imgAv) imgAv.src = group.avatar || DEFAULT_AVATAR;
-                }
-                const badge = document.getElementById(`unread-badge-${gKey}`);
-                if (badge && privateUnreadCounts[gKey] > 0) { badge.textContent = privateUnreadCounts[gKey]; badge.classList.remove('hidden'); }
-            });
-        }
+            }
+        });
+
+        Object.keys(allGroups).forEach(gKey => {
+            const group = allGroups[gKey];
+            const myKey = currentUser.nickname.replace('@', '');
+            if (!group.members || !group.members.includes(myKey)) {
+                const rowOld = document.getElementById(`group-row-${gKey}`); if (rowOld) rowOld.remove(); return;
+            }
+            let existingRow = document.getElementById(`group-row-${gKey}`);
+            if (!existingRow) {
+                existingRow = document.createElement('div'); existingRow.id = `group-row-${gKey}`; existingRow.classList.add('contact-list-row');
+                existingRow.innerHTML = `
+                    <div class="contact-avatar-wrapper"><img src="${group.avatar || DEFAULT_AVATAR}" class="custom-avatar" alt="Group"></div>
+                    <div class="contact-info-block"><h4>${group.name}</h4><p class="contact-sub" style="color:var(--accent)">👥 Grupo de SayChat</p></div>
+                    <span class="private-unread-badge hidden" id="unread-badge-${gKey}">0</span>
+                `;
+                existingRow.addEventListener('click', () => {
+                    currentChatTarget = gKey; chatTargetType = "group";
+                    document.getElementById('btn-nav-global').classList.remove('active');
+                    document.querySelectorAll('.contact-list-row').forEach(r => r.classList.remove('active'));
+                    existingRow.classList.add('active');
+                    document.getElementById('header-channel-title').textContent = `${group.name} (Grupo)`;
+                    document.getElementById('header-channel-avatar').classList.add('hidden');
+                    document.getElementById('header-channel-status').classList.add('hidden');
+                    document.getElementById('btn-edit-active-group').classList.remove('hidden');
+                    privateUnreadCounts[gKey] = 0; 
+                    const badge = document.getElementById(`unread-badge-${gKey}`);
+                    if (badge) badge.classList.add('hidden');
+                    reloadMessagesUI();
+                });
+                
+                // Menú contextual para eliminar el grupo
+                existingRow.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    selectedGroupIdForContext = gKey;
+                    const gMenu = document.getElementById('group-context-menu');
+                    if (gMenu) {
+                        gMenu.style.left = `${e.pageX}px`;
+                        gMenu.style.top = `${e.pageY}px`;
+                        gMenu.classList.remove('hidden');
+                    }
+                });
+
+                listContainer.appendChild(existingRow);
+            } else {
+                const textName = existingRow.querySelector('h4'); if (textName) textName.textContent = group.name;
+                const imgAv = existingRow.querySelector('.custom-avatar'); if (imgAv) imgAv.src = group.avatar || DEFAULT_AVATAR;
+            }
+            const badge = document.getElementById(`unread-badge-${gKey}`);
+            if (badge && privateUnreadCounts[gKey] > 0) { badge.textContent = privateUnreadCounts[gKey]; badge.classList.remove('hidden'); }
+        });
 
         Object.keys(currentUsersCachedMap).forEach(key => {
             const user = currentUsersCachedMap[key];
@@ -257,7 +286,27 @@ const PresenceSystem = {
 // RENDERIZADO DE MENSAJES Y CONTEXTO
 // ==========================================================================
 const ctxMenu = document.getElementById('msg-context-menu');
-document.addEventListener('click', () => { if (ctxMenu) ctxMenu.classList.add('hidden'); });
+const groupCtxMenu = document.getElementById('group-context-menu');
+
+document.addEventListener('click', () => { 
+    if (ctxMenu) ctxMenu.classList.add('hidden'); 
+    if (groupCtxMenu) groupCtxMenu.classList.add('hidden');
+});
+
+const btnDeleteGroup = document.getElementById('btn-delete-group');
+if (btnDeleteGroup) {
+    btnDeleteGroup.onclick = async () => {
+        if (selectedGroupIdForContext) {
+            const confirmDelete = confirm("¿Estás seguro de que deseas eliminar este grupo para todos?");
+            if (confirmDelete) {
+                await remove(ref(db, `groups/${selectedGroupIdForContext}`));
+                if (currentChatTarget === selectedGroupIdForContext) {
+                    document.getElementById('btn-nav-global').click();
+                }
+            }
+        }
+    };
+}
 
 const renderSingleMessageAppend = (msgData) => {
     let shouldRender = false;
@@ -294,6 +343,16 @@ const renderSingleMessageAppend = (msgData) => {
     const time = new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
     let contentHTML = "";
+    let isMentioned = false;
+
+    if (currentUser && msgData.type === 'text' && msgData.message && !msgData.isDeleted) {
+        const myNick = currentUser.nickname.replace('@', '');
+        const mentionRegex = new RegExp(`@${myNick}(?!\\w)`, 'i');
+        if (mentionRegex.test(msgData.message)) {
+            isMentioned = true;
+        }
+    }
+
     if (msgData.isDeleted) {
         contentHTML = `<p class="msg-body" style="font-style:italic; color:var(--text-muted);">Mensaje eliminado</p>`;
     } else {
@@ -304,15 +363,16 @@ const renderSingleMessageAppend = (msgData) => {
         } else if (msgData.type === 'video') {
             contentHTML = `<video src="${msgData.mediaUrl}" controls playsinline muted class="msg-media-expanded previewable-media-click-video"></video>`;
         } else {
-            contentHTML = `<p class="msg-body">${parseMarkdown(msgData.message)}</p>`;
+            contentHTML = `<p class="msg-body">${parseMentions(parseMarkdown(msgData.message))}</p>`;
         }
     }
 
     let editedTag = (!msgData.isDeleted && msgData.isEdited) ? `<div class="msg-edited-tag" style="font-size:10px; color:var(--text-muted); text-align:right; margin-top:3px; font-style:italic;">Mensaje Editado</div>` : "";
+    let glowClass = isMentioned ? "msg-mention-glow" : "";
 
     msgRow.innerHTML = `
         <img src="${liveAuthor.avatar || DEFAULT_AVATAR}" class="custom-avatar" style="width:24px; height:24px; margin-bottom:2px;" alt="Avatar">
-        <div class="msg-bubble">
+        <div class="msg-bubble ${glowClass}">
             <div class="msg-meta"><span class="meta-name">${liveAuthor.name}</span><span class="meta-nick">${liveAuthor.nickname}</span></div>
             ${contentHTML}
             ${editedTag}
@@ -334,6 +394,14 @@ const renderSingleMessageAppend = (msgData) => {
 
     box.appendChild(msgRow);
     box.scrollTop = box.scrollHeight;
+    
+    if (isMentioned) {
+        setTimeout(() => {
+            const bubble = msgRow.querySelector('.msg-mention-glow');
+            if (bubble) bubble.classList.remove('msg-mention-glow');
+        }, 5 * 60 * 1000); // 5 minutos
+    }
+
     attachUniversalMediaPreviewEvents();
 };
 
