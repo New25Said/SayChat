@@ -69,11 +69,22 @@ html, body {
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Estilos para Markdown Estilizado */
+/* Estilos para Markdown y Menciones */
 .md-bold { font-weight: bold; color: #ffffff; }
 .md-italic { font-style: italic; }
 .md-strike { text-decoration: line-through; opacity: 0.7; }
 .md-code { background: rgba(163, 13, 54, 0.2); padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #ff99b3; border: 1px solid rgba(230, 25, 85, 0.3); }
+
+.mentioned-text { color: var(--accent); font-weight: 700; }
+.msg-mention-glow { 
+    animation: mentionPulse 2s infinite; 
+    border: 1px solid var(--accent) !important;
+}
+@keyframes mentionPulse {
+    0% { box-shadow: 0 0 8px var(--accent-glow); }
+    50% { box-shadow: 0 0 20px var(--accent); }
+    100% { box-shadow: 0 0 8px var(--accent-glow); }
+}
 
 /* CARDS ACCESO */
 .window-screen { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
