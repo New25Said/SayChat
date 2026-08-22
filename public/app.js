@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, onChildChanged, get, child, set, update, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, onChildChanged, onChildRemoved, get, child, set, update, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // ==========================================================================
-// CONFIGURACIÓN DE FIREBASE (Totalmente limpia)
+// CONFIGURACIÓN DE FIREBASE
 // ==========================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
@@ -90,6 +90,9 @@ const parseMarkdown = (text) => {
     html = html.replace(/\*(.*?)\*/g, "<span class='md-italic'>$1</span>");
     html = html.replace(/~(.*?)~/g, "<span class='md-strike'>$1</span>");
     html = html.replace(/`(.*?)`/g, "<span class='md-code'>$1</span>");
+    html = html.replace(/\n/g, "<br>"); // Soporte para Enters/Saltos de línea
+    // Soporte para que Gemini renderice imágenes directamente
+    html = html.replace(/!\[([^\]]*)\]\((.*?)\)/g, "<img src='$2' class='msg-media-expanded previewable-media-click' alt='$1' style='margin-top:5px;'>");
     return html;
 };
 
@@ -206,6 +209,7 @@ const PresenceSystem = {
                     document.getElementById('header-channel-avatar').classList.add('hidden');
                     document.getElementById('header-channel-status').classList.add('hidden');
                     document.getElementById('btn-edit-active-group').classList.remove('hidden');
+                    document.getElementById('btn-clear-gemini').classList.add('hidden');
                     privateUnreadCounts[gKey] = 0; 
                     const badge = document.getElementById(`unread-badge-${gKey}`);
                     if (badge) badge.classList.add('hidden');
@@ -257,6 +261,7 @@ const PresenceSystem = {
                     existingRow.classList.add('active');
                     document.getElementById('header-channel-title').textContent = `${user.name} (@${key})`;
                     document.getElementById('btn-edit-active-group').classList.add('hidden');
+                    document.getElementById('btn-clear-gemini').classList.add('hidden');
                     
                     const headAv = document.getElementById('header-channel-avatar');
                     const headSt = document.getElementById('header-channel-status');
@@ -304,6 +309,27 @@ if (btnDeleteGroup) {
                 if (currentChatTarget === selectedGroupIdForContext) {
                     document.getElementById('btn-nav-global').click();
                 }
+            }
+        }
+    };
+}
+
+const btnClearGemini = document.getElementById('btn-clear-gemini');
+if (btnClearGemini) {
+    btnClearGemini.onclick = async () => {
+        if(confirm("¿Seguro que quieres vaciar tu historial con la Inteligencia Artificial? (Esto es irreversible)")) {
+            const myKey = currentUser.nickname.replace('@', '');
+            const updates = {};
+            let count = 0;
+            allMessagesCache.forEach(m => {
+                if (m.channel === 'gemini' && (m.sender === myKey || m.receiver === myKey)) {
+                    updates[m.key] = null;
+                    count++;
+                }
+            });
+            if (count > 0) {
+                await update(ref(db, 'messages'), updates);
+                NotificationSystem.showLocalToast("Historial Vaciado");
             }
         }
     };
@@ -652,12 +678,53 @@ if (regAvatar) {
     });
 }
 
+// FUNCION CENTRALIZADA PARA LLAMAR A LA IA (Acepta Textos e Imágenes)
+const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
+    // 1. Construir el historial (incluyendo fotos enviadas antes)
+    const historyForGemini = allMessagesCache
+        .filter(m => m.channel === 'gemini' && !m.isDeleted && ((m.sender === myKey && m.receiver === 'gemini') || (m.sender === 'gemini' && m.receiver === myKey)))
+        .map(m => {
+            let parts = [];
+            if (m.type === 'text') {
+                parts.push({ text: m.message });
+            } else if (m.type === 'image' || m.type === 'sticker') {
+                if (m.mediaUrl || m.stickerUrl) {
+                    parts.push({ inlineData: { data: (m.mediaUrl || m.stickerUrl).split(',')[1], mimeType: 'image/jpeg' } });
+                }
+                parts.push({ text: m.message || "Imagen adjunta" });
+            }
+            return {
+                role: m.sender === 'gemini' ? 'model' : 'user',
+                parts: parts
+            };
+        });
+    
+    // Eliminamos el mensaje actual del array 'historyForGemini' porque lo mandaremos separado
+    if(historyForGemini.length > 0 && historyForGemini[historyForGemini.length - 1].role === 'user') {
+        historyForGemini.pop();
+    }
+
+    // 2. Enviar petición al servidor Node.js
+    fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: textMsg, mediaBase64: mediaB64, history: historyForGemini })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.reply) {
+            push(ref(db, 'messages'), { sender: 'gemini', receiver: myKey, channel: 'gemini', message: data.reply, type: 'text', timestamp: Date.now() });
+        }
+    }).catch(console.error);
+};
+
 const executeMessageSend = () => {
     const input = document.getElementById('message-input'); 
     const msg = input.value.trim();
     if (msg && currentUser) {
         const myKey = currentUser.nickname.replace('@', '');
         const payload = { sender: myKey, message: msg, type: 'text', timestamp: Date.now() };
+        
         if (currentChatTarget === "global") payload.channel = "global";
         else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
         else if (chatTargetType === "gemini") { payload.channel = "gemini"; payload.receiver = "gemini"; }
@@ -666,29 +733,8 @@ const executeMessageSend = () => {
         push(ref(db, 'messages'), payload)
             .then(() => { 
                 input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden'); 
-                
-                // IA GEMINI CALL
                 if (chatTargetType === "gemini") {
-                    const history = allMessagesCache
-                        .filter(m => m.channel === 'gemini' && m.type === 'text' && ((m.sender === myKey && m.receiver === 'gemini') || (m.sender === 'gemini' && m.receiver === myKey)))
-                        .map(m => ({
-                            role: m.sender === 'gemini' ? 'model' : 'user',
-                            parts: [{ text: m.message }]
-                        }));
-                    
-                    history.pop(); 
-
-                    fetch('/api/gemini', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: msg, history: history })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data.reply) {
-                            push(ref(db, 'messages'), { sender: 'gemini', receiver: myKey, channel: 'gemini', message: data.reply, type: 'text', timestamp: Date.now() });
-                        }
-                    }).catch(console.error);
+                    triggerGeminiReply(myKey, msg, null);
                 }
             })
             .catch((err) => { alert("Error al enviar mensaje: " + err.message); });
@@ -767,11 +813,17 @@ if (chatMediaInput) {
             optimizeAndCompressMedia(file, (b64) => {
                 const myKey = currentUser.nickname.replace('@', '');
                 const payload = { sender: myKey, message: isVideo ? "[Video]" : "[Foto]", type: isVideo ? "video" : "image", mediaUrl: b64, timestamp: Date.now() };
+                
                 if (currentChatTarget === "global") payload.channel = "global";
                 else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
                 else if (chatTargetType === "gemini") { payload.channel = "gemini"; payload.receiver = "gemini"; }
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-                push(ref(db, 'messages'), payload);
+                
+                push(ref(db, 'messages'), payload).then(() => {
+                    if (chatTargetType === "gemini") {
+                        triggerGeminiReply(myKey, isVideo ? "[Video adjunto. Gemini, avísame que aún no puedes ver videos fluidamente.]" : "[Foto adjunta. Describe qué ves]", isVideo ? null : b64);
+                    }
+                });
             });
         }
     };
@@ -788,6 +840,7 @@ if (navGlobalBtn) {
         document.getElementById('header-channel-avatar').classList.add('hidden');
         document.getElementById('header-channel-status').classList.add('hidden');
         document.getElementById('btn-edit-active-group').classList.add('hidden');
+        document.getElementById('btn-clear-gemini').classList.add('hidden');
         privateUnreadCounts["global"] = 0; 
         const badge = document.getElementById('unread-badge-global');
         if (badge) badge.classList.add('hidden');
@@ -809,6 +862,7 @@ if (navGeminiBtn) {
         headSt.textContent = "IA Oficial";
         headSt.classList.remove('hidden');
         document.getElementById('btn-edit-active-group').classList.add('hidden');
+        document.getElementById('btn-clear-gemini').classList.remove('hidden'); // Mostrar botón vaciar chat
         privateUnreadCounts["gemini"] = 0; 
         const badge = document.getElementById('unread-badge-gemini');
         if (badge) badge.classList.add('hidden');
@@ -830,11 +884,19 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
             if (currentUser) {
                 const myKey = currentUser.nickname.replace('@', '');
                 const payload = { sender: myKey, message: '[Sticker]', type: 'sticker', stickerUrl: b64, timestamp: Date.now() };
+                
                 if (currentChatTarget === "global") payload.channel = "global";
                 else if (chatTargetType === "group") { payload.channel = "group"; payload.receiver = currentChatTarget; }
                 else if (chatTargetType === "gemini") { payload.channel = "gemini"; payload.receiver = "gemini"; }
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
-                push(ref(db, 'messages'), payload); document.getElementById('stickers-panel').classList.add('hidden');
+                
+                push(ref(db, 'messages'), payload).then(() => {
+                    if (chatTargetType === "gemini") {
+                        triggerGeminiReply(myKey, '[Te he enviado un Sticker adjunto. Obsérvalo y dime qué te parece]', b64);
+                    }
+                });
+                
+                document.getElementById('stickers-panel').classList.add('hidden');
             }
         };
         grid.appendChild(img);
@@ -846,6 +908,7 @@ const initMessagesLiveStreamListener = () => {
     if (isMessageListenerAttached) return;
     isMessageListenerAttached = true;
 
+    // Escucha cuando se añade un mensaje
     onChildAdded(ref(db, 'messages'), (snapshot) => {
         const data = { key: snapshot.key, ...snapshot.val() };
         allMessagesCache.push(data);
@@ -887,6 +950,7 @@ const initMessagesLiveStreamListener = () => {
         renderSingleMessageAppend(data);
     });
 
+    // Escucha cuando se edita o borra lógico
     onChildChanged(ref(db, 'messages'), (snapshot) => {
         const data = { key: snapshot.key, ...snapshot.val() };
         const index = allMessagesCache.findIndex(m => m.key === snapshot.key);
@@ -894,6 +958,12 @@ const initMessagesLiveStreamListener = () => {
             allMessagesCache[index] = data;
             reloadMessagesUI();
         }
+    });
+
+    // Escucha cuando se elimina totalmente de Firebase (Vaciar Chat)
+    onChildRemoved(ref(db, 'messages'), (snapshot) => {
+        allMessagesCache = allMessagesCache.filter(m => m.key !== snapshot.key);
+        reloadMessagesUI();
     });
 };
 
