@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SayChat - Admin Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #060609;
+            --bg-card: rgba(15, 15, 22, 0.85);
+            --border-clean: rgba(255, 255, 255, 0.12);
+            --accent: #e61955;
+            --text-main: #f4f4f6;
+            --text-muted: #9e9ea9;
+            --font-stack: 'Plus Jakarta Sans', sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-stack); }
+        body { background-color: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* LOGIN SCREEN */
+        #admin-login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: var(--bg-main); }
+        .login-box { background: var(--bg-card); padding: 40px; border-radius: 12px; border: 1px solid var(--accent); box-shadow: 0 0 20px rgba(230, 25, 85, 0.2); text-align: center; width: 320px; }
+        .login-box h2 { margin-bottom: 20px; color: var(--text-main); }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-clean); background: rgba(255,255,255,0.05); color: white; outline: none; }
+        .login-box button { width: 100%; padding: 12px; background: linear-gradient(135deg, #a30d36 0%, #4a0016 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .login-box button:hover { background: var(--accent); }
+
+        /* DASHBOARD */
+        #admin-dashboard { display: none; padding: 30px; flex: 1; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border-clean); padding-bottom: 20px; }
+        .btn-danger { background: #ff4d4d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-danger:hover { background: #cc0000; transform: scale(1.05); }
+
+        .users-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        
+        .user-card { background: var(--bg-card); border: 1px solid var(--border-clean); border-radius: 12px; padding: 20px; position: relative; transition: 0.2s; cursor: pointer; display: flex; align-items: center; gap: 15px; }
+        .user-card:hover { border-color: var(--accent); box-shadow: 0 0 15px rgba(230, 25, 85, 0.3); transform: translateY(-3px); }
+        
+        .btn-delete-user { position: absolute; top: 10px; right: 10px; background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; border-radius: 50%; width: 26px; height: 26px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; opacity: 0; transition: 0.2s; }
+        .user-card:hover .btn-delete-user { opacity: 1; }
+        .btn-delete-user:hover { background: #ff4d4d; color: white; }
+
+        .user-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-clean); }
+        .user-info { flex: 1; overflow: hidden; }
+        .user-info h3 { font-size: 16px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-info p { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+        .status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; margin-top: 5px; }
+        .online { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
+        .idle { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .offline { background: rgba(113, 113, 122, 0.2); color: #9e9ea9; border: 1px solid #71717a; }
+
+        .edit-hint { position: absolute; bottom: 10px; right: 10px; font-size: 10px; color: var(--accent); opacity: 0; transition: 0.2s; }
+        .user-card:hover .edit-hint { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="admin-login-screen">
+        <div class="login-box">
+            <h2>Admin Control</h2>
+            <input type="password" id="admin-pass" placeholder="Contraseña Maestra" autocomplete="off">
+            <button id="btn-login-admin">Ingresar</button>
+        </div>
+    </div>
+
+    <div id="admin-dashboard">
+        <div class="header">
+            <div>
+                <h2>Panel de Control</h2>
+                <p style="color:var(--text-muted); font-size:12px;">Gestión de Cuentas y Servidor</p>
+            </div>
+            <button id="btn-nuke-chats" class="btn-danger">⚠️ Vaciar TODOS los Chats</button>
+        </div>
+        <div class="users-grid" id="users-container">
+            <!-- Cajones inyectados aquí -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, get, remove, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBz2zHkMLxDFwha_h51SjAoYzQtoUgqiiY",
+            authDomain: "seichato.firebaseapp.com",
+            databaseURL: "https://seichato-default-rtdb.firebaseio.com",
+            projectId: "seichato",
+            storageBucket: "seichato.firebasestorage.app",
+            messagingSenderId: "141497749351",
+            appId: "1:141497749351:web:163d6a94738bf5acdfe9c2",
+            measurementId: "G-9635Z02KGL"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // LOGIN AL BACKEND PARA LEER VARIABLE DE ENTORNO saidpass
+        document.getElementById('btn-login-admin').onclick = async () => {
+            const pass = document.getElementById('admin-pass').value;
+            const res = await fetch('/api/admin/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('admin-login-screen').style.display = 'none';
+                document.getElementById('admin-dashboard').style.display = 'flex';
+                document.getElementById('admin-dashboard').style.flexDirection = 'column';
+                initDashboard();
+            } else {
+                alert("Contraseña incorrecta.");
+            }
+        };
+
+        function initDashboard() {
+            // Escuchar Usuarios y Presencia
+            let usersData = {};
+            let presenceData = {};
+
+            const renderUsers = () => {
+                const container = document.getElementById('users-container');
+                container.innerHTML = '';
+
+                Object.keys(usersData).forEach(key => {
+                    const u = usersData[key];
+                    const p = presenceData[key] || { status: 'offline' };
+                    
+                    const card = document.createElement('div');
+                    card.className = 'user-card';
+                    card.innerHTML = `
+                        <button class="btn-delete-user" title="Eliminar Cuenta">✕</button>
+                        <img src="${u.avatar}" class="user-avatar" alt="Avatar">
+                        <div class="user-info">
+                            <h3>${u.name}</h3>
+                            <p>${u.nickname}</p>
+                            <p style="font-style:italic;">${u.statusText || 'Sin estado'}</p>
+                            <span class="status-badge ${p.status}">${p.status.toUpperCase()}</span>
+                        </div>
+                        <span class="edit-hint">Click para editar</span>
+                    `;
+
+                    // ELIMINAR USUARIO
+                    card.querySelector('.btn-delete-user').onclick = async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`¿Estás 100% seguro de eliminar la cuenta de ${u.name} (${u.nickname})?`)) {
+                            await remove(ref(db, `users/${key}`));
+                            await remove(ref(db, `presence/${key}`));
+                            alert("Cuenta eliminada.");
+                        }
+                    };
+
+                    // MODIFICAR USUARIO AL DAR CLICK EN EL CAJÓN
+                    card.onclick = async () => {
+                        const newName = prompt(`Modificando nombre de ${u.nickname}:`, u.name);
+                        if (newName === null) return; 
+                        const newStatus = prompt(`Modificando estado personalizado de ${u.nickname}:`, u.statusText || "");
+                        if (newStatus === null) return;
+
+                        if (newName.trim() !== "") {
+                            await update(ref(db, `users/${key}`), { 
+                                name: newName.trim(), 
+                                statusText: newStatus.trim() 
+                            });
+                        }
+                    };
+
+                    container.appendChild(card);
+                });
+            };
+
+            onValue(ref(db, 'users'), (snap) => {
+                usersData = snap.val() || {};
+                renderUsers();
+            });
+
+            onValue(ref(db, 'presence'), (snap) => {
+                presenceData = snap.val() || {};
+                renderUsers();
+            });
+        }
+
+        // VACIAR TODOS LOS CHATS (Universal)
+        document.getElementById('btn-nuke-chats').onclick = async () => {
+            if (confirm("¡ADVERTENCIA! Estás a punto de borrar TODOS los mensajes de TODOS los canales (Global, Privados, Grupos y Gemini). Esta acción no daña las cuentas ni los grupos, pero el historial se perderá para siempre.\n\n¿Deseas continuar?")) {
+                if (confirm("¿Estás absolutamente seguro?")) {
+                    await remove(ref(db, 'messages'));
+                    alert("🗑️ Todos los chats han sido vaciados exitosamente.");
+                }
+            }
+        };
+    </script>
+</body>
+</html>
