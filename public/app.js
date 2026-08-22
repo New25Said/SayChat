@@ -37,6 +37,8 @@ let selectedMsgIdForContext = null;
 let selectedGroupIdForContext = null;
 let isEditingGroupId = null;
 let oldGroupData = null;
+let typingUnsubscribe = null;
+let typingTimeout = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
 const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a25afa'><path d='M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2ZM5.5 5.5L7 9L8.5 5.5L12 4L8.5 2.5L7 -1L5.5 2.5L2 4L5.5 5.5Z'/></svg>";
@@ -90,8 +92,7 @@ const parseMarkdown = (text) => {
     html = html.replace(/\*(.*?)\*/g, "<span class='md-italic'>$1</span>");
     html = html.replace(/~(.*?)~/g, "<span class='md-strike'>$1</span>");
     html = html.replace(/`(.*?)`/g, "<span class='md-code'>$1</span>");
-    html = html.replace(/\n/g, "<br>"); // Soporte para Enters/Saltos de línea
-    // Soporte para que Gemini renderice imágenes directamente
+    html = html.replace(/\n/g, "<br>");
     html = html.replace(/!\[([^\]]*)\]\((.*?)\)/g, "<img src='$2' class='msg-media-expanded previewable-media-click' alt='$1' style='margin-top:5px;'>");
     return html;
 };
@@ -142,9 +143,10 @@ const NotificationSystem = {
 window.addEventListener('focus', () => NotificationSystem.reset());
 
 // ==========================================================================
-// PRESENCIA Y LISTAS
+// PRESENCIA Y LISTAS CON TIMEOUT DE 5 MINUTOS Y LIMPIEZA
 // ==========================================================================
 const PresenceSystem = {
+    idleTimer: null,
     updateState(status) {
         if (!currentUser) return;
         const userKey = currentUser.nickname.replace('@', '');
@@ -152,7 +154,19 @@ const PresenceSystem = {
     },
     init() {
         this.updateState("online");
-        document.addEventListener("visibilitychange", () => { this.updateState(document.visibilityState === "visible" ? "online" : "idle"); });
+        
+        document.addEventListener("visibilitychange", () => { 
+            if (document.visibilityState === "visible") {
+                clearTimeout(this.idleTimer);
+                this.updateState("online"); 
+            } else {
+                this.updateState("idle");
+                this.idleTimer = setTimeout(() => {
+                    this.updateState("offline");
+                }, 5 * 60 * 1000); // 5 minutos de idle = offline
+            }
+        });
+        
         const userKey = currentUser.nickname.replace('@', '');
         const userRef = ref(db, `presence/${userKey}`);
         onDisconnect(userRef).set({ status: "offline", lastSeen: Date.now() });
@@ -200,6 +214,7 @@ const PresenceSystem = {
                     <span class="private-unread-badge hidden" id="unread-badge-${gKey}">0</span>
                 `;
                 existingRow.addEventListener('click', () => {
+                    setTyping(false); // Limpiar escritura del chat anterior
                     currentChatTarget = gKey; chatTargetType = "group";
                     document.getElementById('btn-nav-global').classList.remove('active');
                     const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
@@ -214,6 +229,7 @@ const PresenceSystem = {
                     const badge = document.getElementById(`unread-badge-${gKey}`);
                     if (badge) badge.classList.add('hidden');
                     reloadMessagesUI();
+                    subscribeToTyping(); // Suscribir al nuevo canal
                 });
                 
                 existingRow.addEventListener('contextmenu', (e) => {
@@ -254,6 +270,7 @@ const PresenceSystem = {
                     <span class="private-unread-badge hidden" id="unread-badge-${key}">0</span>
                 `;
                 existingRow.addEventListener('click', () => {
+                    setTyping(false); // Limpiar escritura
                     currentChatTarget = key; chatTargetType = "private";
                     document.getElementById('btn-nav-global').classList.remove('active');
                     const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
@@ -275,6 +292,7 @@ const PresenceSystem = {
                     const badge = document.getElementById(`unread-badge-${key}`);
                     if (badge) badge.classList.add('hidden');
                     reloadMessagesUI();
+                    subscribeToTyping(); // Suscribir al nuevo canal
                 });
                 listContainer.appendChild(existingRow);
             } else {
@@ -287,6 +305,93 @@ const PresenceSystem = {
         });
     }
 };
+
+// ==========================================================================
+// INDICADOR DE ESCRITURA EN TIEMPO REAL
+// ==========================================================================
+const getTypingChannelId = () => {
+    if (chatTargetType === 'global') return 'global';
+    if (chatTargetType === 'group') return currentChatTarget;
+    if (chatTargetType === 'gemini') {
+        const myKey = currentUser.nickname.replace('@', '');
+        return `gemini_${myKey}`;
+    }
+    const myKey = currentUser.nickname.replace('@', '');
+    const keys = [myKey, currentChatTarget].sort();
+    return `private_${keys[0]}_${keys[1]}`;
+};
+
+const subscribeToTyping = () => {
+    if (typingUnsubscribe) typingUnsubscribe();
+    if (!currentUser) return;
+    const channelId = getTypingChannelId();
+    typingUnsubscribe = onValue(ref(db, `typing/${channelId}`), (snapshot) => {
+        renderTypingIndicators(snapshot.val() || {});
+    });
+};
+
+const renderTypingIndicators = (typingData) => {
+    const container = document.getElementById('typing-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const typingUsers = Object.keys(typingData).filter(key => {
+        if (currentUser && key === currentUser.nickname.replace('@', '')) return false;
+        return (Date.now() - typingData[key]) < 6000; // Limite de vida de la burbuja: 6 seg.
+    });
+
+    if (typingUsers.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+    
+    typingUsers.forEach(key => {
+        let user;
+        if (key === 'gemini') {
+            user = { name: "Gemini AI", avatar: GEMINI_AVATAR };
+        } else {
+            user = currentUsersCachedMap[key] || { name: "Usuario", avatar: DEFAULT_AVATAR };
+        }
+        
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.gap = '8px';
+        wrapper.innerHTML = `
+            <img src="${user.avatar}" class="typing-avatar" title="${user.name} está escribiendo...">
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+        `;
+        container.appendChild(wrapper);
+    });
+    
+    const box = document.getElementById('chat-box');
+    if (box) box.scrollTop = box.scrollHeight;
+};
+
+const setTyping = (isTyping) => {
+    if(!currentUser) return;
+    const myKey = currentUser.nickname.replace('@', '');
+    const channelId = getTypingChannelId();
+    
+    if (isTyping) {
+        set(ref(db, `typing/${channelId}/${myKey}`), Date.now());
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            remove(ref(db, `typing/${channelId}/${myKey}`));
+        }, 4000);
+    } else {
+        remove(ref(db, `typing/${channelId}/${myKey}`));
+        clearTimeout(typingTimeout);
+    }
+};
+
+window.addEventListener('beforeunload', () => {
+    if (currentUser) {
+        setTyping(false);
+    }
+});
 
 // ==========================================================================
 // RENDERIZADO DE MENSAJES Y CONTEXTO
@@ -678,9 +783,11 @@ if (regAvatar) {
     });
 }
 
-// FUNCION CENTRALIZADA PARA LLAMAR A LA IA (Acepta Textos e Imágenes)
 const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
-    // 1. Construir el historial (incluyendo fotos enviadas antes)
+    const channelId = getTypingChannelId();
+    // Iniciar el indicador de escritura de Gemini
+    set(ref(db, `typing/${channelId}/gemini`), Date.now());
+
     const historyForGemini = allMessagesCache
         .filter(m => m.channel === 'gemini' && !m.isDeleted && ((m.sender === myKey && m.receiver === 'gemini') || (m.sender === 'gemini' && m.receiver === myKey)))
         .map(m => {
@@ -699,12 +806,10 @@ const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
             };
         });
     
-    // Eliminamos el mensaje actual del array 'historyForGemini' porque lo mandaremos separado
     if(historyForGemini.length > 0 && historyForGemini[historyForGemini.length - 1].role === 'user') {
         historyForGemini.pop();
     }
 
-    // 2. Enviar petición al servidor Node.js
     fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -715,7 +820,10 @@ const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
         if(data.reply) {
             push(ref(db, 'messages'), { sender: 'gemini', receiver: myKey, channel: 'gemini', message: data.reply, type: 'text', timestamp: Date.now() });
         }
-    }).catch(console.error);
+    }).catch(console.error).finally(() => {
+        // Quitar indicador de escritura al terminar
+        remove(ref(db, `typing/${channelId}/gemini`));
+    });
 };
 
 const executeMessageSend = () => {
@@ -732,7 +840,8 @@ const executeMessageSend = () => {
         
         push(ref(db, 'messages'), payload)
             .then(() => { 
-                input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden'); 
+                input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden');
+                setTyping(false); // Quitar indicador al enviar
                 if (chatTargetType === "gemini") {
                     triggerGeminiReply(myKey, msg, null);
                 }
@@ -751,6 +860,14 @@ if (msgInput) {
     msgInput.onkeydown = (e) => { if (e.key === 'Enter') executeMessageSend(); };
     msgInput.addEventListener('input', async () => {
         const val = msgInput.value;
+        
+        // Emito indicador de escritura
+        if (val.trim().length > 0) {
+            setTyping(true);
+        } else {
+            setTyping(false);
+        }
+
         const cursorStart = msgInput.selectionStart;
         const textBeforeCursor = val.slice(0, cursorStart);
         const match = textBeforeCursor.match(/@([\w]*)$/); 
@@ -832,6 +949,7 @@ if (chatMediaInput) {
 const navGlobalBtn = document.getElementById('btn-nav-global');
 if (navGlobalBtn) {
     navGlobalBtn.onclick = () => {
+        setTyping(false);
         currentChatTarget = "global"; chatTargetType = "global";
         navGlobalBtn.classList.add('active');
         const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
@@ -845,12 +963,14 @@ if (navGlobalBtn) {
         const badge = document.getElementById('unread-badge-global');
         if (badge) badge.classList.add('hidden');
         reloadMessagesUI();
+        subscribeToTyping();
     };
 }
 
 const navGeminiBtn = document.getElementById('btn-nav-gemini');
 if (navGeminiBtn) {
     navGeminiBtn.onclick = () => {
+        setTyping(false);
         currentChatTarget = "gemini"; chatTargetType = "gemini";
         navGeminiBtn.classList.add('active');
         document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-gemini') r.classList.remove('active'); });
@@ -862,11 +982,12 @@ if (navGeminiBtn) {
         headSt.textContent = "IA Oficial";
         headSt.classList.remove('hidden');
         document.getElementById('btn-edit-active-group').classList.add('hidden');
-        document.getElementById('btn-clear-gemini').classList.remove('hidden'); // Mostrar botón vaciar chat
+        document.getElementById('btn-clear-gemini').classList.remove('hidden'); 
         privateUnreadCounts["gemini"] = 0; 
         const badge = document.getElementById('unread-badge-gemini');
         if (badge) badge.classList.add('hidden');
         reloadMessagesUI();
+        subscribeToTyping();
     };
 }
 
@@ -908,7 +1029,6 @@ const initMessagesLiveStreamListener = () => {
     if (isMessageListenerAttached) return;
     isMessageListenerAttached = true;
 
-    // Escucha cuando se añade un mensaje
     onChildAdded(ref(db, 'messages'), (snapshot) => {
         const data = { key: snapshot.key, ...snapshot.val() };
         allMessagesCache.push(data);
@@ -950,7 +1070,6 @@ const initMessagesLiveStreamListener = () => {
         renderSingleMessageAppend(data);
     });
 
-    // Escucha cuando se edita o borra lógico
     onChildChanged(ref(db, 'messages'), (snapshot) => {
         const data = { key: snapshot.key, ...snapshot.val() };
         const index = allMessagesCache.findIndex(m => m.key === snapshot.key);
@@ -960,7 +1079,6 @@ const initMessagesLiveStreamListener = () => {
         }
     });
 
-    // Escucha cuando se elimina totalmente de Firebase (Vaciar Chat)
     onChildRemoved(ref(db, 'messages'), (snapshot) => {
         allMessagesCache = allMessagesCache.filter(m => m.key !== snapshot.key);
         reloadMessagesUI();
@@ -1035,6 +1153,7 @@ const initAppAfterLogin = async () => {
     currentUsersCachedMap = snapUsers.val() || {};
     
     initMessagesLiveStreamListener();
+    subscribeToTyping(); // Suscribimos al primer canal (Global por defecto)
     
     PresenceSystem.init(); 
     PresenceSystem.listenPresence();
@@ -1043,11 +1162,13 @@ const initAppAfterLogin = async () => {
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.onclick = () => {
+        setTyping(false); // Limpiamos nuestro indicador al salir
         PresenceSystem.updateState("offline"); 
         currentUser = null; 
         allMessagesCache = []; 
         privateUnreadCounts = {}; 
         isMessageListenerAttached = false;
+        if(typingUnsubscribe) typingUnsubscribe();
         localStorage.removeItem('chat_session_v5'); 
         document.getElementById('chat-screen').classList.add('hidden'); 
         document.getElementById('auth-screen').classList.remove('hidden');
