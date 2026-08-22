@@ -1,7 +1,7 @@
 {
-  "name": "multichat-web",
-  "version": "1.0.0",
-  "description": "Chat en vivo usando Firebase y Render",
+  "name": "saychat-v5",
+  "version": "5.0.0",
+  "description": "Chat en vivo usando Firebase, Render y Gemini AI",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
