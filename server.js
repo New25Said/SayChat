@@ -119,6 +119,21 @@ Ejemplo: si piden un perro espacial, respondes: ¡Claro! Aquí tienes: ![Perro E
   }
 });
 
+// =========================================================================
+// API DE ADMIN CONTROL (CHATCONTROL)
+// =========================================================================
+app.post('/api/admin/verify', (req, res) => {
+  const { password } = req.body;
+  // Comparamos con la variable de entorno 'saidpass' de Render
+  const truePass = process.env.saidpass;
+  
+  if (password === truePass) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+  }
+});
+
 app.get('*', (req, res) => {
   const publicPath = path.join(__dirname, 'public', 'index.html');
   if (fs.existsSync(publicPath)) {
