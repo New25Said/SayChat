@@ -151,17 +151,26 @@
                         }
                     };
 
-                    // MODIFICAR USUARIO AL DAR CLICK EN EL CAJÓN
+                    // MODIFICAR USUARIO AL DAR CLICK EN EL CAJÓN (Añadido Avatar y Password)
                     card.onclick = async () => {
                         const newName = prompt(`Modificando nombre de ${u.nickname}:`, u.name);
                         if (newName === null) return; 
+                        
                         const newStatus = prompt(`Modificando estado personalizado de ${u.nickname}:`, u.statusText || "");
                         if (newStatus === null) return;
+
+                        const newAvatar = prompt(`Modificando URL o Base64 de la Foto de Perfil (deja igual si no quieres cambiar):`, u.avatar || "");
+                        if (newAvatar === null) return;
+
+                        const newPass = prompt(`Modificando contraseña de ${u.nickname}:`, u.password || "");
+                        if (newPass === null) return;
 
                         if (newName.trim() !== "") {
                             await update(ref(db, `users/${key}`), { 
                                 name: newName.trim(), 
-                                statusText: newStatus.trim() 
+                                statusText: newStatus.trim(),
+                                avatar: newAvatar.trim(),
+                                password: newPass.trim()
                             });
                         }
                     };
