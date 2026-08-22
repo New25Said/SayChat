@@ -61,12 +61,16 @@ app.post('/api/gemini', async (req, res) => {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   
+  // SOLUCIÓN A ERROR 503 / LENTITUD:
+  // Se pone el modelo 'gemini-1.5-flash' (oficial y rápido) de primero para evitar
+  // que trate de usar modelos que aún no existen oficialmente y causen retrasos en cadena.
   const models = [
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash-8b',
     'gemini-3.7-flash',       
-    'gemini-3.6-flash',       
-    'gemini-3.5-flash',       
-    'gemini-3.5-flash-lite',  
-    'gemini-3.1-flash-lite',  
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite'
   ];
   
   // Prompt maestro actualizado: Enseña a la IA a usar saltos de línea, listas e invocar al generador de imágenes.
@@ -146,8 +150,12 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 
+  // SOLUCIÓN A LAS HORAS GRATIS DE RENDER:
+  // He comentado la función de "Auto-Ping". Ahora Render mandará a dormir la app 
+  // tras 15 minutos sin uso, lo que evitará que se acaben tus horas mensuales gratuitas.
+  
+  /*
   const PING_INTERVAL = 10 * 60 * 1000; 
-
   setInterval(() => {
     https.get(`${RENDER_URL}/ping`, (res) => {
       console.log(`[Auto-Ping] Estado del servidor: ${res.statusCode}`);
@@ -155,4 +163,5 @@ app.listen(PORT, () => {
       console.error('[Auto-Ping] Error al realizar el ping:', err.message);
     });
   }, PING_INTERVAL);
+  */
 });
