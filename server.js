@@ -65,10 +65,7 @@ app.post('/api/gemini', async (req, res) => {
   // Se pone el modelo 'gemini-1.5-flash' (oficial y rápido) de primero para evitar
   // que trate de usar modelos que aún no existen oficialmente y causen retrasos en cadena.
   const models = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-flash-8b',
-    'gemini-3.7-flash',       
+
     'gemini-3.6-flash',
     'gemini-3.1-flash-lite'
   ];
