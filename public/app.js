@@ -307,7 +307,7 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// INDICADOR DE ESCRITURA EN TIEMPO REAL
+// INDICADOR DE ESCRITURA EN TIEMPO REAL (Animación persistente y timer Gemini)
 // ==========================================================================
 const getTypingChannelId = () => {
     if (chatTargetType === 'global') return 'global';
@@ -333,37 +333,50 @@ const subscribeToTyping = () => {
 const renderTypingIndicators = (typingData) => {
     const container = document.getElementById('typing-container');
     if (!container) return;
-    container.innerHTML = '';
     
+    // Filtrar quién está escribiendo (IA tiene 60s, humanos 6s)
     const typingUsers = Object.keys(typingData).filter(key => {
         if (currentUser && key === currentUser.nickname.replace('@', '')) return false;
-        return (Date.now() - typingData[key]) < 6000; // Limite de vida de la burbuja: 6 seg.
+        const timeout = key === 'gemini' ? 60000 : 6000;
+        return (Date.now() - typingData[key]) < timeout;
     });
 
     if (typingUsers.length === 0) {
         container.classList.add('hidden');
+        container.innerHTML = ''; // Limpieza segura si no hay nadie
         return;
     }
 
     container.classList.remove('hidden');
     
-    typingUsers.forEach(key => {
-        let user;
-        if (key === 'gemini') {
-            user = { name: "Gemini AI", avatar: GEMINI_AVATAR };
-        } else {
-            user = currentUsersCachedMap[key] || { name: "Usuario", avatar: DEFAULT_AVATAR };
+    // Eliminar del DOM a los que ya NO están escribiendo
+    Array.from(container.children).forEach(child => {
+        if (!typingUsers.includes(child.dataset.userKey)) {
+            child.remove();
         }
-        
-        const wrapper = document.createElement('div');
-        wrapper.style.display = 'flex';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.gap = '8px';
-        wrapper.innerHTML = `
-            <img src="${user.avatar}" class="typing-avatar" title="${user.name} está escribiendo...">
-            <div class="typing-dots"><span></span><span></span><span></span></div>
-        `;
-        container.appendChild(wrapper);
+    });
+
+    // Agregar solo a los NUEVOS que no están en el DOM (esto evita que se reinicie la animación)
+    typingUsers.forEach(key => {
+        if (!container.querySelector(`[data-user-key="${key}"]`)) {
+            let user;
+            if (key === 'gemini') {
+                user = { name: "Gemini AI", avatar: GEMINI_AVATAR };
+            } else {
+                user = currentUsersCachedMap[key] || { name: "Usuario", avatar: DEFAULT_AVATAR };
+            }
+            
+            const wrapper = document.createElement('div');
+            wrapper.dataset.userKey = key;
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.gap = '8px';
+            wrapper.innerHTML = `
+                <img src="${user.avatar}" class="typing-avatar" title="${user.name} está escribiendo...">
+                <div class="typing-dots"><span></span><span></span><span></span></div>
+            `;
+            container.appendChild(wrapper);
+        }
     });
     
     const box = document.getElementById('chat-box');
@@ -785,7 +798,7 @@ if (regAvatar) {
 
 const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
     const channelId = getTypingChannelId();
-    // Iniciar el indicador de escritura de Gemini
+    // Iniciar el indicador de escritura de Gemini (persistente hasta 60s)
     set(ref(db, `typing/${channelId}/gemini`), Date.now());
 
     const historyForGemini = allMessagesCache
