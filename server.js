@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const https = require('https');
+const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -12,7 +13,8 @@ const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://saychat.onrender.
 // Permitir recepción de JSON en el cuerpo de las peticiones
 app.use(express.json());
 
-// Servir los archivos estáticos desde la carpeta 'public'
+// Soporte dual: Detecta si los archivos están en la raíz o en una carpeta 'public'
+app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Ruta de comprobación de estado para el auto-ping
@@ -50,11 +52,11 @@ app.post('/api/gemini', async (req, res) => {
   
   const models = [
     // --- GENERACIÓN FRONTERA ACTUAL (Gemini 3.x) ---
-    'gemini-3.7-flash',       // Último modelo insignia, optimizado para tareas complejas y código (Agosto 2026)
-    'gemini-3.6-flash',       // Alta velocidad y razonamiento avanzado de pasos múltiples
-    'gemini-3.5-flash',       // Excelente balance entre velocidad e inteligencia general
-    'gemini-3.5-flash-lite',  // Variante ultrarrápida y económica para alto volumen de peticiones
-    'gemini-3.1-flash-lite',  // Rendimiento de frontera a un costo mínimo
+    'gemini-3.7-flash',       
+    'gemini-3.6-flash',       
+    'gemini-3.5-flash',       
+    'gemini-3.5-flash-lite',  
+    'gemini-3.1-flash-lite',  
   ];
   
   // Forzamos a la IA a solo usar el markdown de SayChat
@@ -89,9 +91,14 @@ app.post('/api/gemini', async (req, res) => {
   }
 });
 
-// Ruta principal
+// Ruta principal (Soporte dual de rutas)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const publicPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(publicPath)) {
+      res.sendFile(publicPath);
+  } else {
+      res.sendFile(path.join(__dirname, 'index.html'));
+  }
 });
 
 app.listen(PORT, () => {
