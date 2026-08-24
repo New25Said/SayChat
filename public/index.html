@@ -2,8 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SayChat v4</title>
+    <!-- Etiquetas PWA / Mobile -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#060609">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -101,13 +104,14 @@
 
                     <div id="btn-nav-gemini" class="contact-list-row">
                         <div class="contact-avatar-wrapper">
-                            <div class="global-avatar-icon" style="background:linear-gradient(135deg, #1e003b 0%, #0d001a 100%); border-color:#8e2de2; color:#a25afa; box-shadow: 0 0 10px rgba(142, 45, 226, 0.4);">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2ZM5.5 5.5L7 9L8.5 5.5L12 4L8.5 2.5L7 -1L5.5 2.5L2 4L5.5 5.5Z"/></svg>
+                            <div class="global-avatar-icon" style="background:var(--bg-main); border-color:var(--accent); color:var(--accent); box-shadow: 0 0 10px rgba(230, 25, 85, 0.4);">
+                                <!-- Icono tipo Meta AI / Klain -->
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4z"/></svg>
                             </div>
                         </div>
                         <div class="contact-info-block">
                             <div class="contact-row-top">
-                                <h4>✨ Gemini AI</h4>
+                                <h4>✨ Klain IA</h4>
                             </div>
                             <p class="contact-sub">Asistente Oficial</p>
                         </div>
@@ -127,6 +131,11 @@
                         <img id="header-channel-avatar" src="" class="custom-avatar hidden" style="width:36px; height:36px;" alt="Avatar Header">
                         <div style="display:flex; flex-direction:column; flex:1;">
                             <div style="display:flex; align-items:center; gap:8px;">
+                                <!-- Boton Responsive -->
+                                <button type="button" id="mobile-back-btn" class="mobile-back-btn" title="Volver">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                                </button>
+                                
                                 <h2 id="header-channel-title">SayChat // Global</h2>
                                 <span id="header-channel-status" class="hidden" style="background:rgba(255,255,255,0.1); padding:3px 10px; border-radius:20px; font-size:11px; border:1px solid var(--border-clean);"></span>
                                 <button type="button" id="btn-edit-active-group" class="btn-sidebar-action hidden" title="Editar Grupo">
@@ -144,7 +153,6 @@
                     <!-- Mensajes dinámicos -->
                 </main>
 
-                <!-- NUEVO CONTENEDOR DE INDICADOR DE ESCRITURA -->
                 <div id="typing-container" class="typing-container hidden"></div>
                 
                 <div id="stickers-panel" class="stickers-popup hidden">
