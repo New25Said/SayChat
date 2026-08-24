@@ -1,9 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onChildAdded, onChildChanged, onChildRemoved, get, child, set, update, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
 
 // REGISTRO DE SERVICE WORKER PARA NOTIFICACIONES MÓVILES PWA
+let swRegistration = null;
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.log('Error SW:', err));
+    navigator.serviceWorker.register('./sw.js')
+        .then(reg => { swRegistration = reg; })
+        .catch(err => console.log('Error SW:', err));
 }
 
 // ==========================================================================
@@ -108,12 +112,19 @@ const parseMentions = (text) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES (Soporte Nativo Móvil PWA)
+// NOTIFICACIONES (Soporte Sonido Reparado y Web Push)
 // ==========================================================================
 const NotificationSystem = {
     trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
         const sound = document.getElementById('noti-sound');
-        if (sound) { sound.currentTime = 0; sound.play().catch(() => {}); }
+        if (sound) { 
+            sound.currentTime = 0; 
+            const playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => { console.log("Navegador bloqueó el auto-play del sonido", e); });
+            }
+        }
+        
         if (!document.hasFocus()) {
             unreadCountGlobal++;
             document.title = `(${unreadCountGlobal}) ${baseTitle}`;
@@ -124,7 +135,8 @@ const NotificationSystem = {
                     navigator.serviceWorker.ready.then(reg => {
                         reg.showNotification(title, { 
                             body: bodyText, 
-                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCc+PHBhdGggZD0nTTEyIDE1YTMgMyAwIDEgMCAwLTYgMyAzIDAgMCAwIDAgNlonLz48cGF0aCBkPSdNMTkuNCAxNWExLjY1IDEuNjUgMCAwIDAgLjMzIDEuODJsLjA2LjA2YTIgMiAwIDAgMSAwIDIuODMgMiAyIDAgMCAxLTIuODMgMGwtLjA2LS4wNmExLjY1IDEuNjUgMCAwIDAtMS44Mi0uMzMgMS42NSAxLjY1IDAgMCAwLTEgMS41MVYyMWEyIDIgMCAwIDEtMiAyIDIgMiAwIDAgMS0yLTJ2LS4wOUExLjY1IDEuNjUgMCAwIDAgOSAxOS40YTEuNjUgMS42NSAwIDAgMC0xLjgyLjMzbC0uMDYuMDZhMiAyIDAgMCAxLTIuODMgMCAyIDIgMCAxIDAtMi44M2wuMDYtLjA2YTEuNjUgMS42NSAwIDAgMCAuMzMtMS44MiAxLjY1IDEuNjUgMCAwIDAtMS41MS0xSDNhMiAyIDAgMCAxLTItMiAyIDIgMCAwIDEgMi0yaC4wOUExLjY1IDEuNjUgMCAwIDAgNC42IDlhMS42NSAxLjY1IDAgMCAwLS4zMy0xLjgybC0uMDYtLjA2YTIgMiAwIDAgMSAwLTIuODMgMiAyIDAgMCAxIDIuODMgMGwuMDYuMDZhMS42NSAxLjY1IDAgMCAwIDEuODIuMzNIOWExLjY1IDEuNjUgMCAwIDAgMS0xLjUxVjNhMiAyIDAgMCAxIDItMiAyIDIgMCAwIDEgMiAydi4wOWExLjY1IDEuNjUgMCAwIDAgMSAxLjUxIDEuNjUgMS42NSAwIDAgMCAxLjgyLS4zM2wuMDYtLjA2YTIgMiAwIDAgMSAyLjgzIDAgMiAyIDAgMCAxIDAgMi44M2wtLjA2LjA2YTEuNjUgMS42NSAwIDAgMC0uMzMgMS44MlY5YTEuNjUgMS42NSAwIDAgMCAxLjUxIDFIMjFhMiAyIDAgMCAxIDIgMiAyIDIgMCAwIDEtMiAyaC0uMDlhMS42NSAxLjY1IDAgMCAwLTEuNTEgMVonLz48L3N2Zz4=" 
+                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCc+PHBhdGggZD0nTTEyIDE1YTMgMyAwIDEgMCAwLTYgMyAzIDAgMCAwIDAgNlonLz48cGF0aCBkPSdNMTkuNCAxNWExLjY1IDEuNjUgMCAwIDAgLjMzIDEuODJsLjA2LjA2YTIgMiAwIDAgMSAwIDIuODMgMiAyIDAgMCAxLTIuODMgMGwtLjA2LS4wNmExLjY1IDEuNjUgMCAwIDAtMS44Mi0uMzMgMS42NSAxLjY1IDAgMCAwLTEgMS41MVYyMWEyIDIgMCAwIDEtMiAyIDIgMiAwIDAgMS0yLTJ2LS4wOUExLjY1IDEuNjUgMCAwIDAgOSAxOS40YTEuNjUgMS42NSAwIDAgMC0xLjgyLjMzbC0uMDYuMDZhMiAyIDAgMCAxLTIuODMgMCAyIDIgMCAxIDAtMi44M2wuMDYtLjA2YTEuNjUgMS42NSAwIDAgMCAuMzMtMS44MiAxLjY1IDEuNjUgMCAwIDAtMS41MS0xSDNhMiAyIDAgMCAxLTItMiAyIDIgMCAwIDEgMi0yaC4wOUExLjY1IDEuNjUgMCAwIDAgNC42IDlhMS42NSAxLjY1IDAgMCAwLS4zMy0xLjgybC0uMDYtLjA2YTIgMiAwIDAgMSAwLTIuODMgMiAyIDAgMCAxIDIuODMgMGwuMDYuMDZhMS42NSAxLjY1IDAgMCAwIDEuODIuMzNIOWExLjY1IDEuNjUgMCAwIDAgMS0xLjUxVjNhMiAyIDAgMCAxIDItMiAyIDIgMCAwIDEgMiAydi4wOWExLjY1IDEuNjUgMCAwIDAgMSAxLjUxIDEuNjUgMS42NSAwIDAgMCAxLjgyLS4zM2wuMDYtLjA2YTIgMiAwIDAgMSAyLjgzIDAgMiAyIDAgMCAxIDAgMi44M2wtLjA2LjA2YTEuNjUgMS42NSAwIDAgMC0uMzMgMS44MlY5YTEuNjUgMS42NSAwIDAgMCAxLjUxIDFIMjFhMiAyIDAgMCAxIDIgMiAyIDIgMCAwIDEtMiAyaC0uMDlhMS42NSAxLjY1IDAgMCAwLTEuNTEgMVonLz48L3N2Zz4=",
+                            vibrate: [200, 100, 200]
                         });
                     }).catch(() => {
                         new Notification(title, { body: bodyText, silent: true });
@@ -157,6 +169,48 @@ const NotificationSystem = {
 };
 
 window.addEventListener('focus', () => NotificationSystem.reset());
+
+// ==========================================================================
+// NOTIFICAR AL BACKEND PARA QUE ENVÍE EL PUSH AL CELULAR CERRADO
+// ==========================================================================
+const notifyBackendPush = async (payload) => {
+    try {
+        let tokens = [];
+        const myKey = currentUser.nickname.replace('@', '');
+        
+        if (payload.channel === 'global') {
+            Object.keys(currentUsersCachedMap).forEach(k => {
+                if (k !== myKey && currentUsersCachedMap[k].fcmToken) tokens.push(currentUsersCachedMap[k].fcmToken);
+            });
+        } else if (payload.channel === 'private') {
+            const target = currentUsersCachedMap[payload.receiver];
+            if (target && target.fcmToken) tokens.push(target.fcmToken);
+        } else if (payload.channel === 'group') {
+            const snapG = await get(child(dbRef, `groups/${payload.receiver}`));
+            const gData = snapG.val();
+            if (gData && gData.members) {
+                gData.members.forEach(k => {
+                    if (k !== myKey && currentUsersCachedMap[k] && currentUsersCachedMap[k].fcmToken) {
+                        tokens.push(currentUsersCachedMap[k].fcmToken);
+                    }
+                });
+            }
+        }
+
+        if (tokens.length > 0) {
+            let textPreview = payload.type === 'text' ? payload.message : (payload.type === 'image' ? '📷 Foto' : (payload.type === 'video' ? '🎥 Video' : '🏷️ Sticker'));
+            await fetch('/api/send-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: `${currentUser.name} (SayChat)`,
+                    body: textPreview,
+                    tokens: tokens
+                })
+            });
+        }
+    } catch(e) { console.log('Push api error', e); }
+};
 
 // ==========================================================================
 // PRESENCIA Y LISTAS CON TIMEOUT DE 5 MINUTOS Y LIMPIEZA
@@ -814,7 +868,6 @@ if (regAvatar) {
 
 const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
     const channelId = getTypingChannelId();
-    // Iniciar el indicador de escritura de la IA (persistente hasta 60s)
     set(ref(db, `typing/${channelId}/gemini`), Date.now());
 
     const historyForGemini = allMessagesCache
@@ -850,7 +903,6 @@ const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
             push(ref(db, 'messages'), { sender: 'gemini', receiver: myKey, channel: 'gemini', message: data.reply, type: 'text', timestamp: Date.now() });
         }
     }).catch(console.error).finally(() => {
-        // Quitar indicador de escritura al terminar
         remove(ref(db, `typing/${channelId}/gemini`));
     });
 };
@@ -870,7 +922,8 @@ const executeMessageSend = () => {
         push(ref(db, 'messages'), payload)
             .then(() => { 
                 input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden');
-                setTyping(false); // Quitar indicador al enviar
+                setTyping(false); 
+                notifyBackendPush(payload); // Dispara la notificación Push a celulares
                 if (chatTargetType === "gemini") {
                     triggerGeminiReply(myKey, msg, null);
                 }
@@ -890,7 +943,6 @@ if (msgInput) {
     msgInput.addEventListener('input', async () => {
         const val = msgInput.value;
         
-        // Emito indicador de escritura
         if (val.trim().length > 0) {
             setTyping(true);
         } else {
@@ -966,6 +1018,7 @@ if (chatMediaInput) {
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
                 
                 push(ref(db, 'messages'), payload).then(() => {
+                    notifyBackendPush(payload); // Dispara la notificación Push a celulares
                     if (chatTargetType === "gemini") {
                         triggerGeminiReply(myKey, isVideo ? "[Video adjunto. Klain, avísame que aún no puedes ver videos fluidamente.]" : "[Foto adjunta. Describe qué ves]", isVideo ? null : b64);
                     }
@@ -1041,6 +1094,7 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
                 
                 push(ref(db, 'messages'), payload).then(() => {
+                    notifyBackendPush(payload); // Dispara la notificación Push a celulares
                     if (chatTargetType === "gemini") {
                         triggerGeminiReply(myKey, '[Te he enviado un Sticker adjunto. Obsérvalo y dime qué te parece]', b64);
                     }
@@ -1174,21 +1228,33 @@ const initAppAfterLogin = async () => {
     document.getElementById('current-user-name').textContent = currentUser.name; 
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
-    // Ocultar sidebar en móviles automáticamente al iniciar sesión
     if (window.innerWidth <= 768) {
         const sb = document.querySelector('.whatsapp-sidebar');
         if (sb) sb.classList.add('sidebar-hidden');
     }
 
-    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-        Notification.requestPermission();
+    // NUEVO: OBTENCIÓN DEL TOKEN DE FCM PARA PUSH NOTIFICATIONS
+    const messaging = getMessaging(app);
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted' && swRegistration) {
+            const token = await getToken(messaging, { 
+                vapidKey: "VAPID_FIREBASE", // <-- ¡PON TU VAPID KEY AQUÍ!
+                serviceWorkerRegistration: swRegistration 
+            });
+            if (token) {
+                await update(ref(db, `users/${currentUser.nickname.replace('@', '')}`), { fcmToken: token });
+            }
+        }
+    } catch (e) {
+        console.log("No se pudo obtener token de notificaciones FCM:", e);
     }
 
     const snapUsers = await get(child(dbRef, 'users'));
     currentUsersCachedMap = snapUsers.val() || {};
     
     initMessagesLiveStreamListener();
-    subscribeToTyping(); // Suscribimos al primer canal (Global por defecto)
+    subscribeToTyping(); 
     
     PresenceSystem.init(); 
     PresenceSystem.listenPresence();
@@ -1197,7 +1263,7 @@ const initAppAfterLogin = async () => {
 const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.onclick = () => {
-        setTyping(false); // Limpiamos nuestro indicador al salir
+        setTyping(false); 
         PresenceSystem.updateState("offline"); 
         currentUser = null; 
         allMessagesCache = []; 
@@ -1216,9 +1282,6 @@ if (savedSession) {
     initAppAfterLogin(); 
 }
 
-// ==========================================================================
-// NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR)
-// ==========================================================================
 const mobileBackBtn = document.getElementById('mobile-back-btn');
 const mobileCloseSidebarBtn = document.getElementById('mobile-close-sidebar');
 const sidebar = document.querySelector('.whatsapp-sidebar');
@@ -1235,7 +1298,6 @@ if (mobileCloseSidebarBtn && sidebar) {
     });
 }
 
-// Cerramos la sidebar automáticamente cuando se selecciona un chat en el celular
 document.addEventListener('click', (e) => {
     const isContactRow = e.target.closest('.contact-list-row');
     if (isContactRow && window.innerWidth <= 768) {
