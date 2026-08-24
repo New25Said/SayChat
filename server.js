@@ -3,6 +3,7 @@ const path = require('path');
 const https = require('https');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const admin = require('firebase-admin'); // LIBRERÍA NUEVA PARA NOTIFICACIONES
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,13 +11,52 @@ const PORT = process.env.PORT || 3000;
 // URL de la app en Render
 const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://saychat.onrender.com';
 
-// Permitir recepción de JSON en el cuerpo de las peticiones (con límite extendido para imágenes grandes)
+// Permitir recepción de JSON en el cuerpo de las peticiones
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Soporte dual: Detecta si los archivos están en la raíz o en una carpeta 'public'
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// =========================================================================
+// CONFIGURACIÓN DE FIREBASE ADMIN (PARA PUSH NOTIFICATIONS EN SEGUNDO PLANO)
+// =========================================================================
+let adminInitialized = false;
+try {
+    if (process.env.FIREBASE_ADMIN_JSON) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_JSON);
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        adminInitialized = true;
+        console.log("🔥 Firebase Admin (Push Notifications) inicializado correctamente.");
+    } else {
+        console.warn("⚠️ Falta la variable FIREBASE_ADMIN_JSON en Render. Las notificaciones Push en segundo plano no funcionarán.");
+    }
+} catch (e) {
+    console.error("Error inicializando Firebase Admin:", e);
+}
+
+// ENDPOINT PARA DISPARAR LAS NOTIFICACIONES A LOS CELULARES
+app.post('/api/send-push', async (req, res) => {
+    if (!adminInitialized) return res.status(500).json({ error: "Admin SDK no configurado" });
+
+    const { title, body, tokens } = req.body;
+    if (!tokens || tokens.length === 0) return res.json({ success: true, message: "Nadie a quien notificar" });
+
+    try {
+        const message = {
+            notification: { title, body },
+            tokens: tokens 
+        };
+        const response = await admin.messaging().sendEachForMulticast(message);
+        res.json({ success: true, response });
+    } catch (error) {
+        console.error("Error enviando push:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 app.get('/ping', (req, res) => {
   res.status(200).send('SayChat Ping OK');
@@ -62,10 +102,12 @@ app.post('/api/gemini', async (req, res) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   
   // SOLUCIÓN A ERROR 503 / LENTITUD:
-   const models = [
-
-    'gemini-3.6-flash',
-    'gemini-3.1-flash-lite'
+  const models = [
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash-8b',
+    'gemini-3.7-flash',       
+    'gemini-3.6-flash'
   ];
   
   // Prompt maestro actualizado para KLAIN
@@ -123,7 +165,6 @@ Ejemplo: si piden un perro espacial, respondes: ¡Claro! Aquí tienes: ![Perro E
 // =========================================================================
 app.post('/api/admin/verify', (req, res) => {
   const { password } = req.body;
-  // Comparamos con la variable de entorno 'saidpass' de Render
   const truePass = process.env.saidpass;
   
   if (password === truePass) {
