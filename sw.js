@@ -1,26 +1,13 @@
-const CACHE_NAME = 'saychat-v6-cache';
-
+// sw.js - Service Worker mínimo para habilitar Notificaciones Móviles y PWA
 self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
+    event.waitUntil(self.clients.claim());
 });
 
-// Escucha de notificaciones nativas en celulares
-self.addEventListener('notificationclick', function(event) {
-    event.notification.close();
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-            if (clientList.length > 0) {
-                let client = clientList[0];
-                for (let i = 0; i < clientList.length; i++) {
-                    if (clientList[i].focused) { client = clientList[i]; }
-                }
-                return client.focus();
-            }
-            return clients.openWindow('/');
-        })
-    );
+self.addEventListener('push', (event) => {
+    // Si usaras un servidor Push avanzado en el futuro, iría aquí.
+    // Por ahora, usamos notificaciones locales desde app.js mediante el Service Worker.
 });
