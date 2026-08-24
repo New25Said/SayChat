@@ -50,7 +50,7 @@ let typingUnsubscribe = null;
 let typingTimeout = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
-const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e61955' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z'/><path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z'/></svg>";
+const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 22 L7.5 14.5 L16.5 14.5 Z'/><path d='M11.2 13.5 C5 12.5 2.5 5 2.5 5 C4.5 9 8 10.5 10.8 12.2 Z'/><path d='M12.8 13.5 C19 12.5 21.5 5 21.5 5 C19.5 9 16 10.5 13.2 12.2 Z'/><path d='M12 11.5 L8.5 6 L10.5 7 L12 2 L13.5 7 L15.5 6 Z'/></svg>";
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -112,39 +112,16 @@ const parseMentions = (text) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES (Soporte Sonido Reparado y Web Push)
+// NOTIFICACIONES (Soporte Sonido Nativo y Web Push sin Duplicados)
 // ==========================================================================
 const NotificationSystem = {
     trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
-        const sound = document.getElementById('noti-sound');
-        if (sound) { 
-            sound.currentTime = 0; 
-            const playPromise = sound.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(e => { console.log("Navegador bloqueó el auto-play del sonido", e); });
-            }
-        }
-        
         if (!document.hasFocus()) {
             unreadCountGlobal++;
             document.title = `(${unreadCountGlobal}) ${baseTitle}`;
             this.updateFaviconBadge();
-
-            if (Notification.permission === 'granted') {
-                if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
-                    navigator.serviceWorker.ready.then(reg => {
-                        reg.showNotification(title, { 
-                            body: bodyText, 
-                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCc+PHBhdGggZD0nTTEyIDE1YTMgMyAwIDEgMCAwLTYgMyAzIDAgMCAwIDAgNlonLz48cGF0aCBkPSdNMTkuNCAxNWExLjY1IDEuNjUgMCAwIDAgLjMzIDEuODJsLjA2LjA2YTIgMiAwIDAgMSAwIDIuODMgMiAyIDAgMCAxLTIuODMgMGwtLjA2LS4wNmExLjY1IDEuNjUgMCAwIDAtMS44Mi0uMzMgMS42NSAxLjY1IDAgMCAwLTEgMS41MVYyMWEyIDIgMCAwIDEtMiAyIDIgMiAwIDAgMS0yLTJ2LS4wOUExLjY1IDEuNjUgMCAwIDAgOSAxOS40YTEuNjUgMS42NSAwIDAgMC0xLjgyLjMzbC0uMDYuMDZhMiAyIDAgMCAxLTIuODMgMCAyIDIgMCAxIDAtMi44M2wuMDYtLjA2YTEuNjUgMS42NSAwIDAgMCAuMzMtMS44MiAxLjY1IDEuNjUgMCAwIDAtMS41MS0xSDNhMiAyIDAgMCAxLTItMiAyIDIgMCAwIDEgMi0yaC4wOUExLjY1IDEuNjUgMCAwIDAgNC42IDlhMS42NSAxLjY1IDAgMCAwLS4zMy0xLjgybC0uMDYtLjA2YTIgMiAwIDAgMSAwLTIuODMgMiAyIDAgMCAxIDIuODMgMGwuMDYuMDZhMS42NSAxLjY1IDAgMCAwIDEuODIuMzNIOWExLjY1IDEuNjUgMCAwIDAgMS0xLjUxVjNhMiAyIDAgMCAxIDItMiAyIDIgMCAwIDEgMiAydi4wOWExLjY1IDEuNjUgMCAwIDAgMSAxLjUxIDEuNjUgMS42NSAwIDAgMCAxLjgyLS4zM2wuMDYtLjA2YTIgMiAwIDAgMSAyLjgzIDAgMiAyIDAgMCAxIDAgMi44M2wtLjA2LjA2YTEuNjUgMS42NSAwIDAgMC0uMzMgMS44MlY5YTEuNjUgMS42NSAwIDAgMCAxLjUxIDFIMjFhMiAyIDAgMCAxIDIgMiAyIDIgMCAwIDEtMiAyaC0uMDlhMS42NSAxLjY1IDAgMCAwLTEuNTEgMVonLz48L3N2Zz4=",
-                            vibrate: [200, 100, 200]
-                        });
-                    }).catch(() => {
-                        new Notification(title, { body: bodyText, silent: true });
-                    });
-                } else {
-                    new Notification(title, { body: bodyText, silent: true });
-                }
-            }
+            // Eliminado el sonido manual y el "new Notification()".
+            // Ahora la notificación Push del servidor y tu OS se encargan de todo de forma nativa.
         }
     },
     reset() { unreadCountGlobal = 0; document.title = baseTitle; this.restoreFavicon(); },
@@ -923,7 +900,7 @@ const executeMessageSend = () => {
             .then(() => { 
                 input.value = ''; document.getElementById('mentions-dropdown').classList.add('hidden');
                 setTyping(false); 
-                notifyBackendPush(payload); // Dispara la notificación Push a celulares
+                notifyBackendPush(payload); 
                 if (chatTargetType === "gemini") {
                     triggerGeminiReply(myKey, msg, null);
                 }
@@ -1018,7 +995,7 @@ if (chatMediaInput) {
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
                 
                 push(ref(db, 'messages'), payload).then(() => {
-                    notifyBackendPush(payload); // Dispara la notificación Push a celulares
+                    notifyBackendPush(payload); 
                     if (chatTargetType === "gemini") {
                         triggerGeminiReply(myKey, isVideo ? "[Video adjunto. Klain, avísame que aún no puedes ver videos fluidamente.]" : "[Foto adjunta. Describe qué ves]", isVideo ? null : b64);
                     }
@@ -1094,7 +1071,7 @@ onChildAdded(ref(db, 'stickers'), (snap) => {
                 else { payload.channel = "private"; payload.receiver = currentChatTarget; }
                 
                 push(ref(db, 'messages'), payload).then(() => {
-                    notifyBackendPush(payload); // Dispara la notificación Push a celulares
+                    notifyBackendPush(payload); 
                     if (chatTargetType === "gemini") {
                         triggerGeminiReply(myKey, '[Te he enviado un Sticker adjunto. Obsérvalo y dime qué te parece]', b64);
                     }
@@ -1239,7 +1216,7 @@ const initAppAfterLogin = async () => {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && swRegistration) {
             const token = await getToken(messaging, { 
-                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58", // <-- ¡PON TU VAPID KEY AQUÍ!
+                vapidKey: "AQUI_TU_VAPID_KEY_DE_FIREBASE", // <-- ¡PON TU VAPID KEY AQUÍ!
                 serviceWorkerRegistration: swRegistration 
             });
             if (token) {
