@@ -507,3 +507,30 @@ input[type="text"]:focus, input[type="password"]:focus {
     .window-screen { padding: 0; }
     .whatsapp-auth-card { width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
 }
+
+
+
+/* =========================================================================
+   NUEVO: RESPONSIVE & PWA (COMPATIBILIDAD MÓVIL OPTIMIZADA)
+   ========================================================================= */
+.mobile-back-btn { display: none; background: transparent; border: none; color: var(--text-main); cursor: pointer; padding: 4px; border-radius: 50%; transition: var(--ease-normal); }
+.mobile-back-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+@media (max-width: 768px) {
+    .whatsapp-layout-wrapper { position: relative; overflow: hidden; }
+    .whatsapp-sidebar { position: absolute; width: 100vw; min-width: 100vw; height: 100%; z-index: 10; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    .whatsapp-viewport { width: 100%; height: 100%; }
+    .sidebar-hidden { transform: translateX(-100%); }
+    .mobile-back-btn { display: flex !important; margin-right: 8px; }
+    .msg-row { max-width: 90%; }
+    .window-screen { padding: 0; }
+    .whatsapp-auth-card { width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
+    .viewport-header { padding: 10px 12px; }
+    
+    /* MEJORAS DE UI MÓVIL EXACTAS */
+    #chat-form-mock { padding-bottom: max(10px, env(safe-area-inset-bottom)); } /* Evita que la barra inferior o teclado tape el chat */
+    #chat-form-mock input { font-size: 16px !important; } /* Tamaño de 16px exacto para bloquear el zoom automático en iPhones al teclear */
+    .modal-card { width: 95%; max-height: 90vh; overflow-y: auto; } /* Evita que el modal se salga en pantallas pequeñas */
+    .stickers-popup { left: 50%; transform: translateX(-50%); width: 90vw; bottom: 70px; } /* Stickers flotan al medio de la pantalla */
+    .msg-media-expanded { max-width: 100%; height: auto; } /* Videos e imágenes se ajustan al 100% del teléfono */
+}
