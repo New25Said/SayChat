@@ -46,7 +46,7 @@ let typingUnsubscribe = null;
 let typingTimeout = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
-const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e61955' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4z'/></svg>";
+const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e61955' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z'/><path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z'/></svg>";
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -124,7 +124,7 @@ const NotificationSystem = {
                     navigator.serviceWorker.ready.then(reg => {
                         reg.showNotification(title, { 
                             body: bodyText, 
-                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzIuNScgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cGF0aCBkPSdNMTIgMTJjLTItMi42Ny00LTQtNi00YTQgNCAwIDEgMCAwIDhjMiAwIDQtMS4zMyA2LTR6bTAgMGMyIDIuNjcgNCA0IDYgNGE0IDQgMCAxIDAgMC04Yy0yIDAtNCAxLjMzLTYgNHonLz48L3N2Zz4=" 
+                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzInIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCc+PHBhdGggZD0nTTEyIDE1YTMgMyAwIDEgMCAwLTYgMyAzIDAgMCAwIDAgNlonLz48cGF0aCBkPSdNMTkuNCAxNWExLjY1IDEuNjUgMCAwIDAgLjMzIDEuODJsLjA2LjA2YTIgMiAwIDAgMSAwIDIuODMgMiAyIDAgMCAxLTIuODMgMGwtLjA2LS4wNmExLjY1IDEuNjUgMCAwIDAtMS44Mi0uMzMgMS42NSAxLjY1IDAgMCAwLTEgMS41MVYyMWEyIDIgMCAwIDEtMiAyIDIgMiAwIDAgMS0yLTJ2LS4wOUExLjY1IDEuNjUgMCAwIDAgOSAxOS40YTEuNjUgMS42NSAwIDAgMC0xLjgyLjMzbC0uMDYuMDZhMiAyIDAgMCAxLTIuODMgMCAyIDIgMCAxIDAtMi44M2wuMDYtLjA2YTEuNjUgMS42NSAwIDAgMCAuMzMtMS44MiAxLjY1IDEuNjUgMCAwIDAtMS41MS0xSDNhMiAyIDAgMCAxLTItMiAyIDIgMCAwIDEgMi0yaC4wOUExLjY1IDEuNjUgMCAwIDAgNC42IDlhMS42NSAxLjY1IDAgMCAwLS4zMy0xLjgybC0uMDYtLjA2YTIgMiAwIDAgMSAwLTIuODMgMiAyIDAgMCAxIDIuODMgMGwuMDYuMDZhMS42NSAxLjY1IDAgMCAwIDEuODIuMzNIOWExLjY1IDEuNjUgMCAwIDAgMS0xLjUxVjNhMiAyIDAgMCAxIDItMiAyIDIgMCAwIDEgMiAydi4wOWExLjY1IDEuNjUgMCAwIDAgMSAxLjUxIDEuNjUgMS42NSAwIDAgMCAxLjgyLS4zM2wuMDYtLjA2YTIgMiAwIDAgMSAyLjgzIDAgMiAyIDAgMCAxIDAgMi44M2wtLjA2LjA2YTEuNjUgMS42NSAwIDAgMC0uMzMgMS44MlY5YTEuNjUgMS42NSAwIDAgMCAxLjUxIDFIMjFhMiAyIDAgMCAxIDIgMiAyIDIgMCAwIDEtMiAyaC0uMDlhMS42NSAxLjY1IDAgMCAwLTEuNTEgMVonLz48L3N2Zz4=" 
                         });
                     }).catch(() => {
                         new Notification(title, { body: bodyText, silent: true });
@@ -1174,6 +1174,12 @@ const initAppAfterLogin = async () => {
     document.getElementById('current-user-name').textContent = currentUser.name; 
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
+    // Ocultar sidebar en móviles automáticamente al iniciar sesión
+    if (window.innerWidth <= 768) {
+        const sb = document.querySelector('.whatsapp-sidebar');
+        if (sb) sb.classList.add('sidebar-hidden');
+    }
+
     if (Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission();
     }
@@ -1214,11 +1220,18 @@ if (savedSession) {
 // NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR)
 // ==========================================================================
 const mobileBackBtn = document.getElementById('mobile-back-btn');
+const mobileCloseSidebarBtn = document.getElementById('mobile-close-sidebar');
 const sidebar = document.querySelector('.whatsapp-sidebar');
 
 if (mobileBackBtn && sidebar) {
     mobileBackBtn.addEventListener('click', () => {
         sidebar.classList.remove('sidebar-hidden');
+    });
+}
+
+if (mobileCloseSidebarBtn && sidebar) {
+    mobileCloseSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.add('sidebar-hidden');
     });
 }
 
