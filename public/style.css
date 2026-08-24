@@ -496,21 +496,26 @@ input[type="text"]:focus, input[type="password"]:focus {
    ========================================================================= */
 .mobile-back-btn { display: none; background: transparent; border: none; color: var(--text-main); cursor: pointer; padding: 4px; border-radius: 50%; transition: var(--ease-normal); }
 .mobile-back-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.mobile-close-sidebar-btn { display: none; background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; display: flex; align-items: center; transition: var(--ease-normal); border-radius: 50%; margin-left: 8px; }
+.mobile-close-sidebar-btn:hover { color: var(--accent); background: rgba(255, 255, 255, 0.06); }
 
 @media (max-width: 768px) {
-    /* dvh arregla el problema del teclado subiendo la pantalla en moviles */
     html, body, .window-screen, .whatsapp-layout-wrapper {
         height: 100dvh;
     }
-    .whatsapp-sidebar { position: absolute; width: 100%; height: 100dvh; z-index: 10; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    .whatsapp-sidebar { position: absolute; width: 100%; height: 100dvh; z-index: 10; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s; }
     .whatsapp-viewport { width: 100%; height: 100dvh; }
-    .sidebar-hidden { transform: translateX(-100%); }
+    
+    /* Solución bloqueo chat: opacity 0 y pointer-events none al ocultarse */
+    .sidebar-hidden { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+    
     .mobile-back-btn { display: flex !important; margin-right: 4px; }
+    .mobile-close-sidebar-btn { display: flex !important; }
+    
     .msg-row { max-width: 92%; }
     .window-screen { padding: 0; }
     .whatsapp-auth-card { width: 100%; height: 100dvh; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
     
-    /* Mejoras visuales para header y espaciado de input en móvil */
     .viewport-header { padding: 10px 12px; }
     .active-chat-meta h2 { font-size: 13.5px; }
     #chat-form-mock { padding-bottom: env(safe-area-inset-bottom); }
