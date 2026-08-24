@@ -9,14 +9,14 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.png",
-      "type": "image/png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzIuNScgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cGF0aCBkPSdNMTIgMTJjLTItMi42Ny00LTQtNi00YTQgNCAwIDEgMCAwIDhjMiAwIDQtMS4zMyA2LTR6bTAgMGMyIDIuNjcgNCA0IDYgNGE0IDQgMCAxIDAgMC04Yy0yIDAtNCAxLjMzLTYgNHonLz48L3N2Zz4=",
+      "type": "image/svg+xml",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "icon.png",
-      "type": "image/png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzIuNScgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cGF0aCBkPSdNMTIgMTJjLTItMi42Ny00LTQtNi00YTQgNCAwIDEgMCAwIDhjMiAwIDQtMS4zMyA2LTR6bTAgMGMyIDIuNjcgNCA0IDYgNGE0IDQgMCAxIDAgMC04Yy0yIDAtNCAxLjMzLTYgNHonLz48L3N2Zz4=",
+      "type": "image/svg+xml",
       "sizes": "512x512",
       "purpose": "any maskable"
     }
