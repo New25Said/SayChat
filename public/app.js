@@ -103,7 +103,7 @@ const parseMentions = (text) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES
+// NOTIFICACIONES (ACTUALIZADO PARA FUNCIONAR EN CELULARES)
 // ==========================================================================
 const NotificationSystem = {
     trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
@@ -115,7 +115,20 @@ const NotificationSystem = {
             this.updateFaviconBadge();
 
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: bodyText, silent: true });
+                // Comprobamos si el teléfono tiene ServiceWorker activo
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(reg => {
+                        reg.showNotification(title, { 
+                            body: bodyText, 
+                            silent: true, 
+                            vibrate: [200, 100, 200],
+                            icon: 'icon.png'
+                        });
+                    });
+                } else {
+                    // Fallback para escritorio
+                    new Notification(title, { body: bodyText, silent: true });
+                }
             }
         }
     },
@@ -1195,7 +1208,7 @@ if (savedSession) {
 }
 
 // ==========================================================================
-// NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR)
+// NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR) Y REGISTRO SW
 // ==========================================================================
 const mobileBackBtn = document.getElementById('mobile-back-btn');
 const sidebar = document.querySelector('.whatsapp-sidebar');
@@ -1213,3 +1226,10 @@ document.addEventListener('click', (e) => {
         if (sidebar) sidebar.classList.add('sidebar-hidden');
     }
 });
+
+// Registrar el Service Worker al final (Necesario para notificaciones nativas en celular y PWA)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.error("Fallo al registrar Service Worker:", err);
+    });
+}
