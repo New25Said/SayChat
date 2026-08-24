@@ -1,6 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onChildAdded, onChildChanged, onChildRemoved, get, child, set, update, remove, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+// REGISTRO DE SERVICE WORKER PARA NOTIFICACIONES MÓVILES PWA
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.log('Error SW:', err));
+}
+
 // ==========================================================================
 // CONFIGURACIÓN DE FIREBASE
 // ==========================================================================
@@ -103,7 +108,7 @@ const parseMentions = (text) => {
 };
 
 // ==========================================================================
-// NOTIFICACIONES (ACTUALIZADO PARA FUNCIONAR EN CELULARES)
+// NOTIFICACIONES (Soporte Nativo Móvil PWA)
 // ==========================================================================
 const NotificationSystem = {
     trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
@@ -115,18 +120,16 @@ const NotificationSystem = {
             this.updateFaviconBadge();
 
             if (Notification.permission === 'granted') {
-                // Comprobamos si el teléfono tiene ServiceWorker activo
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
                     navigator.serviceWorker.ready.then(reg => {
                         reg.showNotification(title, { 
                             body: bodyText, 
-                            silent: true, 
-                            vibrate: [200, 100, 200],
-                            icon: 'icon.png'
+                            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nbm9uZScgc3Ryb2tlPScjZTYxOTU1JyBzdHJva2Utd2lkdGg9JzIuNScgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cGF0aCBkPSdNMTIgMTJjLTItMi42Ny00LTQtNi00YTQgNCAwIDEgMCAwIDhjMiAwIDQtMS4zMyA2LTR6bTAgMGMyIDIuNjcgNCA0IDYgNGE0IDQgMCAxIDAgMC04Yy0yIDAtNCAxLjMzLTYgNHonLz48L3N2Zz4=" 
                         });
+                    }).catch(() => {
+                        new Notification(title, { body: bodyText, silent: true });
                     });
                 } else {
-                    // Fallback para escritorio
                     new Notification(title, { body: bodyText, silent: true });
                 }
             }
@@ -1208,7 +1211,7 @@ if (savedSession) {
 }
 
 // ==========================================================================
-// NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR) Y REGISTRO SW
+// NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR)
 // ==========================================================================
 const mobileBackBtn = document.getElementById('mobile-back-btn');
 const sidebar = document.querySelector('.whatsapp-sidebar');
@@ -1226,10 +1229,3 @@ document.addEventListener('click', (e) => {
         if (sidebar) sidebar.classList.add('sidebar-hidden');
     }
 });
-
-// Registrar el Service Worker al final (Necesario para notificaciones nativas en celular y PWA)
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => {
-        console.error("Fallo al registrar Service Worker:", err);
-    });
-}
