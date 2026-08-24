@@ -103,9 +103,6 @@ app.post('/api/gemini', async (req, res) => {
   
   // SOLUCIÓN A ERROR 503 / LENTITUD:
   const models = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-flash-8b',
     'gemini-3.7-flash',       
     'gemini-3.6-flash'
   ];
