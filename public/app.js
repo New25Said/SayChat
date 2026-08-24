@@ -1239,7 +1239,7 @@ const initAppAfterLogin = async () => {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && swRegistration) {
             const token = await getToken(messaging, { 
-                vapidKey: "VAPID_FIREBASE", // <-- ¡PON TU VAPID KEY AQUÍ!
+                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58", // <-- ¡PON TU VAPID KEY AQUÍ!
                 serviceWorkerRegistration: swRegistration 
             });
             if (token) {
