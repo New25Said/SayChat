@@ -41,7 +41,7 @@ let typingUnsubscribe = null;
 let typingTimeout = null;
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
-const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a25afa'><path d='M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2ZM5.5 5.5L7 9L8.5 5.5L12 4L8.5 2.5L7 -1L5.5 2.5L2 4L5.5 5.5Z'/></svg>";
+const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e61955' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4z'/></svg>";
 
 const imageToConvert64 = (file, callback) => {
     const reader = new FileReader();
@@ -307,7 +307,7 @@ const PresenceSystem = {
 };
 
 // ==========================================================================
-// INDICADOR DE ESCRITURA EN TIEMPO REAL (Animación persistente y timer Gemini)
+// INDICADOR DE ESCRITURA EN TIEMPO REAL (Animación persistente y timer IA)
 // ==========================================================================
 const getTypingChannelId = () => {
     if (chatTargetType === 'global') return 'global';
@@ -356,12 +356,12 @@ const renderTypingIndicators = (typingData) => {
         }
     });
 
-    // Agregar solo a los NUEVOS que no están en el DOM (esto evita que se reinicie la animación)
+    // Agregar solo a los NUEVOS que no están en el DOM
     typingUsers.forEach(key => {
         if (!container.querySelector(`[data-user-key="${key}"]`)) {
             let user;
             if (key === 'gemini') {
-                user = { name: "Gemini AI", avatar: GEMINI_AVATAR };
+                user = { name: "Klain IA", avatar: GEMINI_AVATAR };
             } else {
                 user = currentUsersCachedMap[key] || { name: "Usuario", avatar: DEFAULT_AVATAR };
             }
@@ -482,7 +482,7 @@ const renderSingleMessageAppend = (msgData) => {
 
     let liveAuthor;
     if (msgData.sender === 'gemini') {
-        liveAuthor = { name: "Gemini AI", nickname: "@gemini", avatar: GEMINI_AVATAR };
+        liveAuthor = { name: "Klain IA", nickname: "@klain", avatar: GEMINI_AVATAR };
     } else {
         liveAuthor = currentUsersCachedMap[msgData.sender] || { name: "Usuario", nickname: "@" + msgData.sender, avatar: DEFAULT_AVATAR };
     }
@@ -798,7 +798,7 @@ if (regAvatar) {
 
 const triggerGeminiReply = (myKey, textMsg, mediaB64 = null) => {
     const channelId = getTypingChannelId();
-    // Iniciar el indicador de escritura de Gemini (persistente hasta 60s)
+    // Iniciar el indicador de escritura de la IA (persistente hasta 60s)
     set(ref(db, `typing/${channelId}/gemini`), Date.now());
 
     const historyForGemini = allMessagesCache
@@ -951,7 +951,7 @@ if (chatMediaInput) {
                 
                 push(ref(db, 'messages'), payload).then(() => {
                     if (chatTargetType === "gemini") {
-                        triggerGeminiReply(myKey, isVideo ? "[Video adjunto. Gemini, avísame que aún no puedes ver videos fluidamente.]" : "[Foto adjunta. Describe qué ves]", isVideo ? null : b64);
+                        triggerGeminiReply(myKey, isVideo ? "[Video adjunto. Klain, avísame que aún no puedes ver videos fluidamente.]" : "[Foto adjunta. Describe qué ves]", isVideo ? null : b64);
                     }
                 });
             });
@@ -987,7 +987,7 @@ if (navGeminiBtn) {
         currentChatTarget = "gemini"; chatTargetType = "gemini";
         navGeminiBtn.classList.add('active');
         document.querySelectorAll('.contact-list-row').forEach(r => { if(r.id !== 'btn-nav-gemini') r.classList.remove('active'); });
-        document.getElementById('header-channel-title').textContent = "SayChat // Gemini AI";
+        document.getElementById('header-channel-title').textContent = "SayChat // Klain IA";
         const headAv = document.getElementById('header-channel-avatar');
         headAv.src = GEMINI_AVATAR;
         headAv.classList.remove('hidden');
@@ -1060,7 +1060,7 @@ const initMessagesLiveStreamListener = () => {
 
             if (isForMe) {
                 let liveAuthor;
-                if (data.sender === 'gemini') liveAuthor = { name: "Gemini AI" };
+                if (data.sender === 'gemini') liveAuthor = { name: "Klain IA" };
                 else liveAuthor = currentUsersCachedMap[data.sender] || { name: "Usuario" };
 
                 if (!isMe) NotificationSystem.trigger(data.message, liveAuthor.name);
@@ -1193,3 +1193,23 @@ if (savedSession) {
     currentUser = JSON.parse(savedSession); 
     initAppAfterLogin(); 
 }
+
+// ==========================================================================
+// NUEVO: LÓGICA DE NAVEGACIÓN MÓVIL (OCULTAR/MOSTRAR SIDEBAR)
+// ==========================================================================
+const mobileBackBtn = document.getElementById('mobile-back-btn');
+const sidebar = document.querySelector('.whatsapp-sidebar');
+
+if (mobileBackBtn && sidebar) {
+    mobileBackBtn.addEventListener('click', () => {
+        sidebar.classList.remove('sidebar-hidden');
+    });
+}
+
+// Cerramos la sidebar automáticamente cuando se selecciona un chat en el celular
+document.addEventListener('click', (e) => {
+    const isContactRow = e.target.closest('.contact-list-row');
+    if (isContactRow && window.innerWidth <= 768) {
+        if (sidebar) sidebar.classList.add('sidebar-hidden');
+    }
+});
