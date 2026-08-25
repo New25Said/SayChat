@@ -12,8 +12,16 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Eliminado el bloque onBackgroundMessage. 
-// De esta forma evitamos el "doble popup" porque el SDK de Firebase genera el suyo nativamente.
+messaging.onBackgroundMessage((payload) => {
+    const title = payload.notification?.title || "SayChat";
+    const options = {
+        body: payload.notification?.body || "Tienes un nuevo mensaje",
+        icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==",
+        vibrate: [200, 100, 200],
+        tag: 'saychat-msg' // ¡Crucial para evitar duplicación con el tag de app.js!
+    };
+    self.registration.showNotification(title, options);
+});
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
