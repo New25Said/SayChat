@@ -1215,13 +1215,20 @@ const initAppAfterLogin = async () => {
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && swRegistration) {
-            const token = await getToken(messaging, { 
-                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58
-", // <-- ¡PON TU VAPID KEY AQUÍ!
-                serviceWorkerRegistration: swRegistration 
-            });
-            if (token) {
-                await update(ref(db, `users/${currentUser.nickname.replace('@', '')}`), { fcmToken: token });
+            // AQUÍ ESTÁ LA MAGIA QUIRÚRGICA: Le pedimos el VAPID_ADMIN al server.js
+            const vapidRes = await fetch('/api/vapid');
+            const vapidData = await vapidRes.json();
+            
+            if (vapidData.key) {
+                const token = await getToken(messaging, { 
+                    vapidKey: vapidData.key, 
+                    serviceWorkerRegistration: swRegistration 
+                });
+                if (token) {
+                    await update(ref(db, `users/${currentUser.nickname.replace('@', '')}`), { fcmToken: token });
+                }
+            } else {
+                console.warn("⚠️ Variable VAPID_ADMIN no encontrada en Render.");
             }
         }
     } catch (e) {
