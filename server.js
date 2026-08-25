@@ -3,7 +3,7 @@ const path = require('path');
 const https = require('https');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const admin = require('firebase-admin'); // LIBRERÍA NUEVA PARA NOTIFICACIONES
+const admin = require('firebase-admin'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,7 +52,7 @@ app.post('/api/send-push', async (req, res) => {
                 notification: {
                     icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==",
                     vibrate: [200, 100, 200],
-                    sound: "default" // <-- Modificado de "/noti.mp3" a "default"
+                    sound: "/noti.mp3" // <-- Restaurado a tu archivo personalizado
                 }
             },
             tokens: tokens 
@@ -80,7 +80,6 @@ app.post('/api/gemini', async (req, res) => {
     return res.status(500).json({ reply: "⚠️ La variable de entorno GEMINI_API no está configurada en Render." });
   }
 
-  // Agrupamiento inteligente del historial para evitar el error de alternancia estricta del SDK
   let cleanHistory = [];
   let currentRole = null;
   let currentParts = [];
@@ -100,7 +99,6 @@ app.post('/api/gemini', async (req, res) => {
       if (currentRole !== null) {
           cleanHistory.push({ role: currentRole, parts: currentParts });
       }
-      // Gemini exige que el historial empiece obligatoriamente con el rol 'user'
       if (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
           cleanHistory.shift();
       }
@@ -108,7 +106,6 @@ app.post('/api/gemini', async (req, res) => {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   
-  // SOLUCIÓN A ERROR 503 / LENTITUD:
   const models = [
     'gemini-1.5-flash',
     'gemini-1.5-pro',
@@ -117,7 +114,6 @@ app.post('/api/gemini', async (req, res) => {
     'gemini-3.6-flash'
   ];
   
-  // Prompt maestro actualizado para KLAIN
   const systemPrompt = `Eres Klain, el asistente virtual de SayChat. Estás estructurada en base a la tecnología de Gemini, pero tu nombre oficial aquí es Klain. MUY IMPORTANTE:
 1. Para dar formato usa Negrita (**texto**), Cursiva (*texto*), Tachado (~texto~) y Código (\`texto\`).
 2. Puedes usar saltos de línea (enters) libremente. Para hacer listas, usa viñetas normales (•) o guiones (-), se verán perfectamente bien en el chat.
@@ -139,7 +135,6 @@ Ejemplo: si piden un perro espacial, respondes: ¡Claro! Aquí tienes: ![Perro E
       const model = genAI.getGenerativeModel(modelConfig);
       const chat = model.startChat({ history: cleanHistory });
       
-      // Armamos el mensaje final. Si hay imagen, la insertamos junta al texto.
       let sendParts = [];
       if (message) sendParts.push({ text: message });
       if (mediaBase64) {
@@ -167,9 +162,6 @@ Ejemplo: si piden un perro espacial, respondes: ¡Claro! Aquí tienes: ![Perro E
   }
 });
 
-// =========================================================================
-// API DE ADMIN CONTROL (CHATCONTROL)
-// =========================================================================
 app.post('/api/admin/verify', (req, res) => {
   const { password } = req.body;
   const truePass = process.env.saidpass;
