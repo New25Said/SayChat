@@ -1,7 +1,7 @@
 {
   "name": "SayChat v6",
   "short_name": "SayChat",
-  "description": "Tu espacio de mensajería en vivo impulsado por Klain IA.",
+  "description": "mensagges.",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#060609",
