@@ -197,7 +197,8 @@ const PresenceSystem = {
     updateState(status) {
         if (!currentUser) return;
         const userKey = currentUser.nickname.replace('@', '');
-        set(ref(db, `presence/${userKey}`), { status: status, lastSeen: Date.now() });
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        set(ref(db, `presence/${userKey}`), { status: status, lastSeen: Date.now(), device: isMobile ? 'mobile' : 'desktop' });
     },
     init() {
         this.updateState("online");
@@ -216,7 +217,7 @@ const PresenceSystem = {
         
         const userKey = currentUser.nickname.replace('@', '');
         const userRef = ref(db, `presence/${userKey}`);
-        onDisconnect(userRef).set({ status: "offline", lastSeen: Date.now() });
+        onDisconnect(userRef).set({ status: "offline", lastSeen: Date.now(), device: null });
     },
     listenPresence() {
         onValue(ref(db, 'users'), (snapshot) => { 
@@ -304,6 +305,11 @@ const PresenceSystem = {
             if (currentUser && user.nickname === currentUser.nickname) return;
 
             const userState = presenceData[key] ? presenceData[key].status : "offline";
+            let deviceIcon = "";
+            if (userState !== "offline" && presenceData[key] && presenceData[key].device) {
+                deviceIcon = presenceData[key].device === 'mobile' ? " 📱" : " 💻";
+            }
+            
             let existingRow = document.getElementById(`user-row-${key}`);
 
             if (!existingRow) {
@@ -313,7 +319,7 @@ const PresenceSystem = {
                         <img src="${user.avatar || DEFAULT_AVATAR}" class="custom-avatar target-user-img" alt="Avatar">
                         <span class="status-indicator-dot ${userState}"></span>
                     </div>
-                    <div class="contact-info-block"><h4 class="target-user-name">${user.name}</h4><p class="contact-sub">${user.nickname}</p></div>
+                    <div class="contact-info-block"><h4 class="target-user-name">${user.name}${deviceIcon}</h4><p class="contact-sub">${user.nickname}</p></div>
                     <span class="private-unread-badge hidden" id="unread-badge-${key}">0</span>
                 `;
                 existingRow.addEventListener('click', () => {
@@ -344,7 +350,7 @@ const PresenceSystem = {
                 listContainer.appendChild(existingRow);
             } else {
                 const dot = existingRow.querySelector('.status-indicator-dot'); if (dot) dot.className = `status-indicator-dot ${userState}`;
-                const textName = existingRow.querySelector('.target-user-name'); if (textName) textName.textContent = user.name;
+                const textName = existingRow.querySelector('.target-user-name'); if (textName) textName.textContent = user.name + deviceIcon;
                 const imgAv = existingRow.querySelector('.target-user-img'); if (imgAv) imgAv.src = user.avatar || DEFAULT_AVATAR;
             }
             const badge = document.getElementById(`unread-badge-${key}`);
@@ -707,8 +713,11 @@ if (saveProfileBtn) {
             await update(ref(db, `users/${userKey}`), { name: newName, avatar: tempModalAvatarBase64, statusText: newStatus });
             currentUser.name = newName; currentUser.avatar = tempModalAvatarBase64; currentUser.statusText = newStatus;
             localStorage.setItem('chat_session_v5', JSON.stringify(currentUser));
+            
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             document.getElementById('current-user-avatar').src = currentUser.avatar;
-            document.getElementById('current-user-name').textContent = currentUser.name;
+            document.getElementById('current-user-name').textContent = currentUser.name + (isMobile ? " 📱" : " 💻");
+            
             modalOverlay.classList.add('hidden');
             NotificationSystem.showLocalToast("Perfil Guardado");
             reloadMessagesUI();
@@ -1201,8 +1210,9 @@ const initAppAfterLogin = async () => {
     document.getElementById('auth-screen').classList.add('hidden'); 
     document.getElementById('chat-screen').classList.remove('hidden');
     
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     document.getElementById('current-user-avatar').src = currentUser.avatar || DEFAULT_AVATAR; 
-    document.getElementById('current-user-name').textContent = currentUser.name; 
+    document.getElementById('current-user-name').textContent = currentUser.name + (isMobile ? " 📱" : " 💻"); 
     document.getElementById('current-user-nickname').textContent = currentUser.nickname;
     
     if (window.innerWidth <= 768) {
@@ -1210,25 +1220,16 @@ const initAppAfterLogin = async () => {
         if (sb) sb.classList.add('sidebar-hidden');
     }
 
-    // NUEVO: OBTENCIÓN DEL TOKEN DE FCM PARA PUSH NOTIFICATIONS
     const messaging = getMessaging(app);
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && swRegistration) {
-            // AQUÍ ESTÁ LA MAGIA QUIRÚRGICA: Le pedimos el VAPID_ADMIN al server.js
-            const vapidRes = await fetch('/api/vapid');
-            const vapidData = await vapidRes.json();
-            
-            if (vapidData.key) {
-                const token = await getToken(messaging, { 
-                    vapidKey: vapidData.key, 
-                    serviceWorkerRegistration: swRegistration 
-                });
-                if (token) {
-                    await update(ref(db, `users/${currentUser.nickname.replace('@', '')}`), { fcmToken: token });
-                }
-            } else {
-                console.warn("⚠️ Variable VAPID_ADMIN no encontrada en Render.");
+            const token = await getToken(messaging, { 
+                vapidKey: "AQUI_TU_VAPID_KEY_DE_FIREBASE", // <-- ¡PON TU VAPID KEY AQUÍ!
+                serviceWorkerRegistration: swRegistration 
+            });
+            if (token) {
+                await update(ref(db, `users/${currentUser.nickname.replace('@', '')}`), { fcmToken: token });
             }
         }
     } catch (e) {
