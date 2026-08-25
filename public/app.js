@@ -1243,7 +1243,7 @@ const initAppAfterLogin = async () => {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && swRegistration) {
             const token = await getToken(messaging, { 
-                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58", // <-- ¡PON TU VAPID KEY AQUÍ!
+                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58", // <-- VAPID ACTUALIZADO A PETICIÓN
                 serviceWorkerRegistration: swRegistration 
             });
             if (token) {
