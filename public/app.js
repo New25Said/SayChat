@@ -49,6 +49,22 @@ let oldGroupData = null;
 let typingUnsubscribe = null;
 let typingTimeout = null;
 
+// === DESBLOQUEO DE AUDIO (ACCESO PERMANENTE) RESTAURADO ===
+const unlockAudio = () => {
+    const sound = document.getElementById('noti-sound');
+    if (sound) {
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+        }).catch(() => {}); // Ignorar errores silenciosamente
+    }
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('touchstart', unlockAudio);
+};
+document.addEventListener('click', unlockAudio);
+document.addEventListener('touchstart', unlockAudio);
+// ==========================================================
+
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
 const GEMINI_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e61955'><path d='M12 22 L7.5 14.5 L16.5 14.5 Z'/><path d='M11.2 13.5 C5 12.5 2.5 5 2.5 5 C4.5 9 8 10.5 10.8 12.2 Z'/><path d='M12.8 13.5 C19 12.5 21.5 5 21.5 5 C19.5 9 16 10.5 13.2 12.2 Z'/><path d='M12 11.5 L8.5 6 L10.5 7 L12 2 L13.5 7 L15.5 6 Z'/></svg>";
 
@@ -117,7 +133,6 @@ const parseMentions = (text) => {
 const NotificationSystem = {
     trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
         
-        // RESTAURADO EL SONIDO NOTI.MP3 PARA CUANDO LA APP ESTÁ ABIERTA EN EL NAVEGADOR
         const sound = document.getElementById('noti-sound');
         if (sound) {
             sound.currentTime = 0;
@@ -137,7 +152,6 @@ const NotificationSystem = {
                     body: bodyText, 
                     icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==",
                     silent: false
-                    // ELIMINADA LA PARTICULA TAG AQUI
                 });
             }
         }
@@ -229,7 +243,7 @@ const PresenceSystem = {
                 this.updateState("idle");
                 this.idleTimer = setTimeout(() => {
                     this.updateState("offline");
-                }, 5 * 60 * 1000); // 5 minutos de idle = offline
+                }, 5 * 60 * 1000); 
             }
         });
         
@@ -280,7 +294,7 @@ const PresenceSystem = {
                     <span class="private-unread-badge hidden" id="unread-badge-${gKey}">0</span>
                 `;
                 existingRow.addEventListener('click', () => {
-                    setTyping(false); // Limpiar escritura del chat anterior
+                    setTyping(false);
                     currentChatTarget = gKey; chatTargetType = "group";
                     document.getElementById('btn-nav-global').classList.remove('active');
                     const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
@@ -295,7 +309,7 @@ const PresenceSystem = {
                     const badge = document.getElementById(`unread-badge-${gKey}`);
                     if (badge) badge.classList.add('hidden');
                     reloadMessagesUI();
-                    subscribeToTyping(); // Suscribir al nuevo canal
+                    subscribeToTyping(); 
                 });
                 
                 existingRow.addEventListener('contextmenu', (e) => {
@@ -341,7 +355,7 @@ const PresenceSystem = {
                     <span class="private-unread-badge hidden" id="unread-badge-${key}">0</span>
                 `;
                 existingRow.addEventListener('click', () => {
-                    setTyping(false); // Limpiar escritura
+                    setTyping(false); 
                     currentChatTarget = key; chatTargetType = "private";
                     document.getElementById('btn-nav-global').classList.remove('active');
                     const gmBtn = document.getElementById('btn-nav-gemini'); if (gmBtn) gmBtn.classList.remove('active');
@@ -363,7 +377,7 @@ const PresenceSystem = {
                     const badge = document.getElementById(`unread-badge-${key}`);
                     if (badge) badge.classList.add('hidden');
                     reloadMessagesUI();
-                    subscribeToTyping(); // Suscribir al nuevo canal
+                    subscribeToTyping(); 
                 });
                 listContainer.appendChild(existingRow);
             } else {
@@ -405,7 +419,6 @@ const renderTypingIndicators = (typingData) => {
     const container = document.getElementById('typing-container');
     if (!container) return;
     
-    // Filtrar quién está escribiendo (IA tiene 60s, humanos 6s)
     const typingUsers = Object.keys(typingData).filter(key => {
         if (currentUser && key === currentUser.nickname.replace('@', '')) return false;
         const timeout = key === 'gemini' ? 60000 : 6000;
@@ -414,20 +427,18 @@ const renderTypingIndicators = (typingData) => {
 
     if (typingUsers.length === 0) {
         container.classList.add('hidden');
-        container.innerHTML = ''; // Limpieza segura si no hay nadie
+        container.innerHTML = ''; 
         return;
     }
 
     container.classList.remove('hidden');
     
-    // Eliminar del DOM a los que ya NO están escribiendo
     Array.from(container.children).forEach(child => {
         if (!typingUsers.includes(child.dataset.userKey)) {
             child.remove();
         }
     });
 
-    // Agregar solo a los NUEVOS que no están en el DOM
     typingUsers.forEach(key => {
         if (!container.querySelector(`[data-user-key="${key}"]`)) {
             let user;
@@ -1243,7 +1254,7 @@ const initAppAfterLogin = async () => {
         const permission = await Notification.requestPermission();
         if (permission === 'granted' && swRegistration) {
             const token = await getToken(messaging, { 
-                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58", // <-- VAPID ACTUALIZADO A PETICIÓN
+                vapidKey: "BNSVK5j4QOhpaqQgvkExMKvrq4Bwc50deeuIc3brEZyWlw9xSiC7sl0zoA3iSnWrj-6ImDL8pWkz_S0G-t0wj58",
                 serviceWorkerRegistration: swRegistration 
             });
             if (token) {
