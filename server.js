@@ -38,11 +38,6 @@ try {
     console.error("Error inicializando Firebase Admin:", e);
 }
 
-// NUEVO: ENDPOINT PARA ENVIAR VAPID AL CLIENTE DE FORMA SEGURA
-app.get('/api/vapid', (req, res) => {
-    res.json({ key: process.env.VAPID_ADMIN });
-});
-
 // ENDPOINT PARA DISPARAR LAS NOTIFICACIONES A LOS CELULARES
 app.post('/api/send-push', async (req, res) => {
     if (!adminInitialized) return res.status(500).json({ error: "Admin SDK no configurado" });
