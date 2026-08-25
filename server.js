@@ -38,6 +38,11 @@ try {
     console.error("Error inicializando Firebase Admin:", e);
 }
 
+// NUEVO: ENDPOINT PARA ENVIAR VAPID AL CLIENTE DE FORMA SEGURA
+app.get('/api/vapid', (req, res) => {
+    res.json({ key: process.env.VAPID_ADMIN });
+});
+
 // ENDPOINT PARA DISPARAR LAS NOTIFICACIONES A LOS CELULARES
 app.post('/api/send-push', async (req, res) => {
     if (!adminInitialized) return res.status(500).json({ error: "Admin SDK no configurado" });
@@ -48,6 +53,12 @@ app.post('/api/send-push', async (req, res) => {
     try {
         const message = {
             notification: { title, body },
+            webpush: {
+                notification: {
+                    icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==",
+                    vibrate: [200, 100, 200]
+                }
+            },
             tokens: tokens 
         };
         const response = await admin.messaging().sendEachForMulticast(message);
@@ -103,6 +114,9 @@ app.post('/api/gemini', async (req, res) => {
   
   // SOLUCIÓN A ERROR 503 / LENTITUD:
   const models = [
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash-8b',
     'gemini-3.7-flash',       
     'gemini-3.6-flash'
   ];
