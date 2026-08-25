@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SayChat</title>
-    <!-- Etiquetas PWA / Mobile / Apple / Universal Icon -->
-    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==">
-    
+    <title>SayChat v4</title>
+    <!-- Etiquetas PWA / Mobile -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#060609">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -31,8 +30,8 @@
     <div id="auth-screen" class="window-screen">
         <div class="whatsapp-auth-card animate-fade">
             <div class="auth-header">
-                <h1>SayChat <span style="font-size:12px; color:var(--accent)">v6!</span></h1>
-                <p>Mensajeria simple y rapida.</p>
+                <h1>SayChat <span style="font-size:12px; color:var(--accent)">v4</span></h1>
+                <p>Tu espacio de mensajería en vivo</p>
             </div>
             
             <div id="login-area" class="auth-view">
