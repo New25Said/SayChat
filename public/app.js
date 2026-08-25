@@ -116,6 +116,17 @@ const parseMentions = (text) => {
 // ==========================================================================
 const NotificationSystem = {
     trigger(bodyText = "Tienes mensajes nuevos", title = baseTitle) {
+        
+        // RESTAURADO EL SONIDO NOTI.MP3 PARA CUANDO LA APP ESTÁ ABIERTA EN EL NAVEGADOR
+        const sound = document.getElementById('noti-sound');
+        if (sound) {
+            sound.currentTime = 0;
+            const playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => console.log(e));
+            }
+        }
+
         if (!document.hasFocus()) {
             unreadCountGlobal++;
             document.title = `(${unreadCountGlobal}) ${baseTitle}`;
@@ -125,8 +136,8 @@ const NotificationSystem = {
                 new Notification(title, { 
                     body: bodyText, 
                     icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nI2U2MTk1NSc+PHBhdGggZD0nTTEyIDIyIEw3LjUgMTQuNSBMMTYuNSAxNC41IFonLz48cGF0aCBkPSdNMTEuMiAxMy41IEM1IDEyLjUgMi41IDUgMi41IDUgQzQuNSA5IDggMTAuNSAxMC44IDEyLjIgWicvPjxwYXRoIGQ9J00xMi44IDEzLjUgQzE5IDEyLjUgMjEuNSA1IDIxLjUgNSBDMTkuNSA5IDE2IDEwLjUgMTMuMiAxMi4yIFonLz48cGF0aCBkPSdNMTIgMTEuNSBMOC41IDYgTDEwLjUgNyBMMTIgMiBMMTMuNSA3IEwxNS41IDYgWicvPjwvc3ZnPg==",
-                    silent: false,
-                    tag: 'saychat-msg'
+                    silent: false
+                    // ELIMINADA LA PARTICULA TAG AQUI
                 });
             }
         }
